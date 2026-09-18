@@ -7,9 +7,13 @@
 
 \usepackage{hyperref}
 \usepackage{url}
+\usepackage{graphicx}
 
+\setlength{\textfloatsep}{8pt}        % 顶部/底部浮动图 与正文的间距
+\setlength{\abovecaptionskip}{3pt}   % 图片 与 caption 的间距
+\setlength{\belowcaptionskip}{0pt}   % caption 下方间距
 
-\title{Formatting Instructions for ICLR 2027 \\ Conference Submissions}
+\title{SpecSys: Selective Speculative Decoding and Completion-Aware Scheduling for Efficient Agentic LLM Inference}
 
 % Authors must not appear in the submitted version. They should be hidden
 % as long as the \iclrfinalcopy macro remains commented out below.
@@ -52,98 +56,19 @@ Address \\
 
 \maketitle
 
+% abstract
 \begin{abstract}
-Large language model (LLM)-powered agents have become increasingly prevalent, with agent tasks typically involving multiple LLM requests and incurring high end-to-end latency dominated by LLM inference. Speculative decoding (SD) is a state-of-the-art technique for accelerating LLM inference by generating candidate tokens with a lightweight drafting mechanism and verifying them in parallel with the target model. However, under high serving loads, SD can incur performance degradation, while frequent and unpredictable workload fluctuations make it difficult to determine when SD is beneficial. To address these challenges, we design SpecSys, an efficient inference system tailored for agent workloads. SpecSys extends the inference engine with an externally controllable SD switch that dynamically enables or disables SD based on the online serving load. For task scheduling, SpecSys employs a lightweight history-based estimator to predict the remaining steps of each agent task based on its workload, workflow, current step, and keywords extracted from the prompt, greedily prioritizes tasks with fewer predicted remaining steps in the waiting queue. We conduct extensive evaluations across four LLMs, four agent tasks, three agent workflows, and two server environments. Compared with strong baselines, including ThunderAgent and vLLM with Dynamic SD, SpecSys reduces average job completion time (JCT), achieving 1.23× to 2.10× speedup. 
+\input{0_abstract}
 \end{abstract}
 
-\section{Submission of conference papers to ICLR 2027}
+% 1.introduction
+\input{1_introduction}
 
-ICLR requires electronic submissions, processed by
-\url{https://openreview.net/}. See ICLR's website for more instructions.
+% 2.related work
+\input{2_related work}
 
-If your paper is ultimately accepted, the statement {\tt
-  {\textbackslash}iclrfinalcopy} should be inserted to adjust the
-format to the camera ready requirements.
-
-The format for the submissions is a variant of the NeurIPS format.
-Please read carefully the instructions below, and follow them
-faithfully.
-
-\subsection{Style}
-
-Papers to be submitted to ICLR 2027 must be prepared according to the
-instructions presented here.
-
-%% Please note that we have introduced automatic line number generation
-%% into the style file for \LaTeXe. This is to help reviewers
-%% refer to specific lines of the paper when they make their comments. Please do
-%% NOT refer to these line numbers in your paper as they will be removed from the
-%% style file for the final version of accepted papers.
-
-Authors are required to use the ICLR \LaTeX{} style files obtainable at the
-ICLR website. Please make sure you use the current files and
-not previous versions. Tweaking the style files may be grounds for rejection.
-
-\subsection{Retrieval of style files}
-
-The style files for ICLR and other conference information are available online at:
-\begin{center}
-   \url{http://www.iclr.cc/}
-\end{center}
-The file \verb+iclr2027_conference.pdf+ contains these
-instructions and illustrates the
-various formatting requirements your ICLR paper must satisfy.
-Submissions must be made using \LaTeX{} and the style files
-\verb+iclr2027_conference.sty+ and \verb+iclr2027_conference.bst+ (to be used with \LaTeX{}2e). The file
-\verb+iclr2027_conference.tex+ may be used as a ``shell'' for writing your paper. All you
-have to do is replace the author, title, abstract, and text of the paper with
-your own.
-
-The formatting instructions contained in these style files are summarized in
-sections \ref{gen_inst}, \ref{headings}, and \ref{others} below.
-
-\section{General formatting instructions}
-\label{gen_inst}
-
-The text must be confined within a rectangle 5.5~inches (33~picas) wide and
-9~inches (54~picas) long. The left margin is 1.5~inch (9~picas).
-Use 10~point type with a vertical spacing of 11~points. Times New Roman is the
-preferred typeface throughout. Paragraphs are separated by 1/2~line space,
-with no indentation.
-
-Paper title is 17~point, in small caps and left-aligned.
-All pages should start at 1~inch (6~picas) from the top of the page.
-
-Authors' names are
-set in boldface, and each name is placed above its corresponding
-address. The lead author's name is to be listed first, and
-the co-authors' names are set to follow. Authors sharing the
-same address can be on the same line.
-
-Please pay special attention to the instructions in section \ref{others}
-regarding figures, tables, acknowledgments, and references.
-
-
-There will be a strict upper limit of \textbf{9 pages} for the main text of the initial submission, with unlimited additional pages for citations. This limit will be expanded to \textbf{10 pages} for rebuttal/camera ready.
-
-\section{Headings: first level}
-\label{headings}
-
-First level headings are in small caps,
-flush left and in point size 12. One line space before the first level
-heading and 1/2~line space after the first level heading.
-
-\subsection{Headings: second level}
-
-Second level headings are in small caps,
-flush left and in point size 10. One line space before the second level
-heading and 1/2~line space after the second level heading.
-
-\subsubsection{Headings: third level}
-
-Third level headings are in small caps,
-flush left and in point size 10. One line space before the third level
-heading and 1/2~line space after the third level heading.
+% 3. method
+\input{3_method}
 
 \section{Citations, figures, tables, references}
 \label{others}
