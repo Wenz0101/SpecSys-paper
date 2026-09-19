@@ -1,0 +1,131 @@
+\section{Method}
+% SD 状态切换示意图
+\begin{figure}[t]
+    \vspace{-30pt}
+    \begin{center}
+    \includegraphics[width=1.0\linewidth]{figures/2-sd switch.pdf}
+    \end{center}
+    \caption{Externally Controllable SD Switching}
+    \label{fig:sd_switch}
+\end{figure}
+
+% 1.支持 SD 动态切换的外部接口
+\subsection{Externally Controllable SD Switching}
+% 总起，分成三部分：外部接口，scheduler，worker
+To support customizable SD selection policies at the upper layer, SpecSys extends the underlying inference engine with an externally controllable runtime SD switch.
+As shown in Figure~\ref{fig:sd_switch}, this design consists of three components: an external control interface, an iteration-level state transition mechanism in the scheduler, and mode-specific execution paths in the worker.
+
+% 外部接口
+\textbf{External Control Interface.}
+SpecSys extends the inference engine with a lightweight control interface to receive SD switching requests and forward them to the scheduler to update the desired execution mode.
+This design decouples the external scheduling policy from the internal execution logic of the inference engine.
+
+% scheduler
+\textbf{Iteration-Level State Transition.}
+To ensure execution consistency, SpecSys performs SD switching only at inference-iteration boundaries. 
+The scheduler maintains two execution states: the mode used by the current iteration and the expected mode for the next iteration. 
+An external switching request only updates the expected state and does not affect an iteration that is already being executed. 
+At the beginning of the next iteration, the scheduler commits the expected state as the current execution mode and propagates it to the worker through \texttt{SchedulerOutput}. 
+Therefore, all requests within the same iteration follow a consistent execution mode.
+
+% worker
+\textbf{Mode-Specific Worker Execution.}
+As Non-SD and SD follow different execution flows and kernel paths (Section~\ref{sec:3.1}), SpecSys preserves separate execution branches for the two modes. 
+During engine initialization, CUDA Graphs for both modes are prepared in advance. 
+At runtime, the worker selects the corresponding execution branch and CUDA Graph based on the mode specified in \texttt{SchedulerOutput}. 
+Within each iteration, all requests in the batch follow the same execution mode and therefore share the same execution path, ensuring consistent batch execution while enabling low-overhead iteration-level switching.
+
+% 2.Agent 剩余 step 数预测
+\subsection{Agent Remaining-Step Prediction}
+\label{sec:4.2}
+% 介绍预测方法的动机
+Based on our profiling results, we find that agent execution patterns vary across workflows and workloads, while the llm request prompt provides additional information about the current execution state. 
+We categorize the workflows considered in our study into three types:
+\begin{itemize}
+    \item \textbf{Type A} represents planning-based workflows, such as Plan-and-Solve, where the planned step count can be directly extracted from the prompt, making prediction straightforward.
+    \item \textbf{Type B} represents multi-step iterative workflows, such as AgentFlow, where tasks terminate at specific step boundaries and exhibit a multimodal step distribution, making the completion step easier to estimate using the mode of the historical distribution.
+    \item \textbf{Type C} represents step-by-step workflows, such as ReAct, where tasks may terminate at almost any step, making prediction more difficult and requiring additional execution-state information.
+\end{itemize}
+
+% 解析请求附带的信息，提取状态关键词，然后分类。
+\textbf{Request-Level Information Extraction.}
+For each LLM request, the upstream agent application provides the workflow, workload, and current execution step as metadata. 
+SpecSys further parses the prompt for state-indicative keywords related to errors, repeated actions, completion, and termination, and maps the request to a workflow-specific execution state.
+
+% 分类保存历史记录
+\textbf{Offline History Profiling.}
+SpecSys groups completed agent requests by workflow and workload and records the distribution of total execution steps $T$. 
+The distributions are further conditioned on the extracted execution state and, for Type C workflows, the transition between the previous and current states.
+
+% 剩余 step 数估计
+\textbf{Remaining-Step Estimation.}
+% Type A，解析 plan 直接得到 P ，然后 P-k 得到剩余 step
+For \textbf{Type A}, let $P$ denote the planned step count extracted from the prompt. 
+Given the current step $k$, the remaining steps are directly computed as
+\begin{equation}
+\hat{R}_{A} = \max(0, P-k).
+\end{equation}
+
+% Type B，看当前状态，根据对应的分类槽里的历史信息中的条件众数得到预测结果
+For \textbf{Type B}, let $s_k$ denote the execution state at step $k$. 
+SpecSys estimates the completion step using the mode of the historical distribution conditioned on the current step and execution state:
+\begin{equation}
+\hat{T}_{B} =
+\mathrm{mode}\{T \mid k, s_k\},
+\qquad
+\hat{R}_{B} = \max(0, \hat{T}_{B}-k).
+\end{equation}
+
+% Type C，看当前状态+历史状态，根据对应的分类槽里的历史信息中的条件中位数得到预测结果
+For \textbf{Type C}, SpecSys further conditions the historical records on both the previous state $s_{k-1}$ and current execution state $s_k$ and uses the median of the corresponding historical distribution:
+
+\begin{equation}
+\hat{T}_{C} =
+\mathrm{median}\{T \mid k, s_{k-1}, s_k\},
+\qquad
+\hat{R}_{C} = \max(0, \hat{T}_{C}-k).
+\end{equation}
+
+When the fine-grained statistics are insufficient, SpecSys progressively falls back to the current-state-conditioned distribution and then to the workflow--workload-level historical distribution.
+
+
+% 3.基于动态负载的 Agent 任务调度和 SD 选择
+\subsection{Load-Adaptive Agent Scheduling and SD Selection}
+
+% 离线 profile 出不同配置下的 SD加速比与推理负载的关系，得到一个平衡点。
+\textbf{Offline SD Speedup Profiling.}
+For each model and hardware configuration, SpecSys profiles the relationship between serving load and SD speedup, and identifies a break-even load $B^{*}$. 
+SD is beneficial below $B^{*}$, while its overhead can cause performance degradation above this point.
+
+% 负载估计
+\textbf{Future-Load Estimation.}
+% 因为切换存在一定的滞后性。考虑负载时不仅是看推理引擎内部的running batch size，还要看外部proxy的计划resume的任务数，二者相加得到预测的未来负载。
+Since SD switching takes effect with a short delay, the current running batch size alone may not reflect the load when the new mode becomes active. 
+SpecSys therefore also considers agent requests temporarily held by the router-proxy that are scheduled to be resumed and submitted to the inference engine. 
+Specifically, it estimates the near-future load by combining the current running batch size $B_{\mathrm{running}}$ with the number of requests to be resumed $B_{\mathrm{resume}}$:
+\begin{equation}
+\hat{B}=B_{\mathrm{running}}+B_{\mathrm{resume}}.
+\end{equation}
+
+% 基于负载选择性使用SD
+\textbf{Load-Adaptive SD Selection.}
+SpecSys compares the estimated load $\hat{B}$ with the profiled break-even load $B^{*}$ and sends an SD-switching request to the inference engine interface accordingly. The SD execution mode is determined as
+\begin{equation}
+\mathrm{Enable\mbox{-}SD} =
+\begin{cases}
+\mathrm{True},  & \hat{B} \leq B^{*}, \\
+\mathrm{False}, & \hat{B} > B^{*},
+\end{cases}
+\end{equation}
+This strategy enables SD under low load to mitigate the decode bottleneck.
+
+% 高负载下的任务调度策略
+\textbf{Agent Task Scheduling.}
+When the serving load becomes high and agent tasks start queuing at the router-proxy, SpecSys prioritizes the task with the fewest predicted remaining steps:
+\begin{equation}
+j^{*} =
+\operatorname*{arg\,min}_{j \in \mathcal{Q}}
+\hat{R}_{j}.
+\end{equation}
+where $\mathcal{Q}$ denotes the queued agent tasks and $\hat{R}_{j}$ is the remaining steps of task $j$ estimated by the predictor in Section~\ref{sec:4.2}.
+This strategy prioritizes tasks closer to completion, thereby mitigating the queue bottleneck under high serving load.

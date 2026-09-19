@@ -38,7 +38,7 @@ These observations raise two key challenges:
 
 % 系统架构图
 \begin{figure}[t]
-    \vspace{-10pt}
+    \vspace{-30pt}
     \begin{center}
     \includegraphics[width=0.9\linewidth]{figures/1-system overview.pdf}
     \end{center}
@@ -65,7 +65,7 @@ Our contributions can be summarized as follows:
     \item \textbf{Externally Controllable SD Switching.}
     We extend the inference engine with an externally controllable switching interface that enables complete iteration-level switching between native SD and non-SD execution modes, reducing runtime overhead by up to 71.3\%.
     % 轻量级的 Agent 任务剩余 Step 预测器。
-    \item \textbf{Lightweight Agent Step Prediction.}
+    \item \textbf{Lightweight Agent Remaining-Step Prediction.}
     We design a lightweight history-based estimator that predicts the remaining steps of an agent job using its workload, workflow, current step, and prompt-derived keywords, achieving an average prediction accuracy of 84.1\% and recall of 82.2\%.
     % 基于并发度联合优化 Agent 任务调度和 SD 切换。
     \item \textbf{Load-Adaptive Agent Scheduling and SD Selection.}
