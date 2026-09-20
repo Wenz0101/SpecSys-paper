@@ -1,9 +1,35 @@
-\section{experiments}
 
-\subsection{setups}
-Environment: 4090, A100
+\section{Experiments}
 
-Model: Qwen3-14B, Qwen3-32B, ... 
-Workload \& Datasets: Coding(MBPP), Web Search(2Wiki), Bash(NL2Bash), SQL(Spider)
-Agent Workflow: ReAct, Plan-And-Slove, AgentFlow
-Inference Trace: Azure, Qwen-Bailian
+% 介绍一下实验设置
+\subsection{Experimental Setup}
+
+\textbf{Hardware.}
+We evaluate SpecSys on two server: \textbf{4$\times$ NVIDIA RTX 4090-24GB} GPUs connected via PCIe 4.0 with an Intel Xeon Gold 6338N CPU (128 cores),
+and \textbf{4$\times$ NVIDIA A100-SXM4-80GB} GPUs connected via NVLink 3.0 with an Intel Xeon Platinum 8369B CPU (128 cores).
+
+\textbf{Models.}
+We evaluate SpecSys on \textbf{Qwen3-14B}, \textbf{Qwen3-32B}~\citep{qwen3}, and \textbf{Llama-3.3-70B-Instruct}~\citep{llama3} to cover different model scales.
+
+\textbf{Workflows.}
+To cover diverse agent execution patterns, we evaluate three representative workflows: \textbf{ReAct}~\citep{ReAct}, \textbf{Plan-and-Solve}~\citep{Plan-and-Solve}, and \textbf{AgentFlow}~\citep{AgentFlow}.
+
+\textbf{Workloads.}
+Our evaluation covers four datasets: \textbf{MBPP}\citep{MBPP}, \textbf{2WikiMultihopQA}\citep{2wiki}, \textbf{NL2Bash}\citep{nl2bash}, and \textbf{Spider}\citep{spider}, corresponding to coding, web search, Bash, and SQL tasks, respectively.
+
+\textbf{Online Traces.}
+Unlike evaluations based on fixed offline workloads, We use request arrival timestamps from two real-world serving traces, the \textbf{Qwen-Bailian Anonymous Dataset}~\citep{qwen-bailian} and \textbf{Microsoft Azure Traces}~\citep{azure}, to evaluate SpecSys under dynamic serving loads. 
+The Qwen-Bailian trace exhibits relatively smooth load variation, while the Azure trace shows more pronounced fluctuations. 
+Details are provided in appendix~\ref{online-trace-detail}.
+
+\textbf{Baselines.}
+We compare SpecSys with \textbf{vLLM Dynamic SD} and \textbf{SGLang Adaptive SD} as adaptive speculative decoding baselines, and \textbf{ThunderAgent} as an agent scheduling baseline.
+
+\textbf{Metric.}
+We use average \textbf{Job Completion Time (JCT)} as the primary metric for end-to-end agent latency, defined as the elapsed time from task arrival to completion of the final workflow step.
+
+
+\subsection{End-to-End Results}
+
+
+\subsection{Ablation Study}

@@ -5,7 +5,12 @@
     \begin{center}
     \includegraphics[width=1.0\linewidth]{figures/2-sd switch.pdf}
     \end{center}
-    \caption{Externally Controllable SD Switching}
+    \caption{
+        Illustration of iteration-level SD switching in SpecSys.
+        At iteration $i$, a heavily loaded batch triggers a \emph{Switch to Non-SD} request, which is forwarded by the scheduler and takes effect at iteration $i+1$.
+        Similarly, a \emph{Switch to SD} request issued under light load at iteration $i+2$ takes effect at iteration $i+3$.
+        All requests within an iteration follow the same execution mode.
+    }
     \label{fig:sd_switch}
 \end{figure}
 
@@ -26,7 +31,6 @@ To ensure execution consistency, SpecSys performs SD switching only at inference
 The scheduler maintains two execution states: the mode used by the current iteration and the expected mode for the next iteration. 
 An external switching request only updates the expected state and does not affect an iteration that is already being executed. 
 At the beginning of the next iteration, the scheduler commits the expected state as the current execution mode and propagates it to the worker through \texttt{SchedulerOutput}. 
-Therefore, all requests within the same iteration follow a consistent execution mode.
 
 % worker
 \textbf{Mode-Specific Worker Execution.}
