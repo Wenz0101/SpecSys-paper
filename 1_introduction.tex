@@ -8,7 +8,7 @@ Large language models (LLMs) have evolved from chatbots to autonomous agents cap
 Representative agent workflows, including ReAct~\citep{ReAct}, Plan-and-Solve~\citep{Plan-and-Solve}, Reflexion~\citep{Reflexion} and AgentFlow~\citep{AgentFlow}, typically execute an agentic request through multiple interdependent stages and LLM calls. 
 As a result, users care about the end-to-end completion time of the entire workflow, which is often dominated by LLM generation, posing significant efficiency challenges for existing LLM inference systems.
 % 1-3.我们的实验表明 Agent 应用的 LLM 请求在不同负载情况下瓶颈不同。
-Our profiling reveals that the dominant latency bottleneck of agentic LLM requests varies with the concurrency. Under low concurrency, decode time dominates request latency, whereas queueing delay grows rapidly with increasing concurrency and eventually becomes the dominant latency component. 
+Our profiling (\autoref{llm-time-ratio}) reveals that the dominant latency bottleneck of agentic LLM requests varies with the concurrency. Under low concurrency, decode time dominates request latency, whereas queueing delay grows rapidly with increasing concurrency and eventually becomes the dominant latency component. 
 
 % 2.介绍 SD
 
@@ -18,7 +18,7 @@ Speculative decoding (SD) is a widely adopted technique to accelerate LLM decodi
 Agent workloads provide additional opportunities for speculative decoding due to their repetitive and structured generation patterns, such as recurring intermediate outputs, tool calls, and schema-constrained responses~\citep{SuffixDecoding,ToolSpec,AgentSpec}.
 % 2-3.介绍 SD 的局限性。
 However, the effectiveness of SD is highly sensitive to batch size. Previous studies have shown that SD speedup decreases as batch size increases and can eventually turn into performance degradation~\cite{SD-Speedup,SSSD,TurboSpec}. 
-Our profiling of agent workloads reveals the same trend. In online agent serving, however, the running batch size varies substantially over time due to dynamic request arrivals and intermittent tool execution between LLM calls.
+Our profiling of agent workloads (\autoref{sd-speedup}) reveals the same trend. In online agent serving, however, the running batch size varies substantially over time due to dynamic request arrivals and intermittent tool execution between LLM calls.
 
 % 3.介绍现有的 Dynamic SD 
 % 3-1.介绍 Dynamic SD 
@@ -73,4 +73,4 @@ Our contributions can be summarized as follows:
 \end{itemize}
 
 % 6 概括实验
-We conduct extensive evaluations of \textsc{SpecSys} across diverse online serving environments, three LLMs, four agent workloads, and three agent workflows. Compared with strong baselines, including ThunderAgent and vLLM with Dynamic SD, \textsc{SpecSys} reduces average job completion time (JCT), achieving from 1.18$\times$  to 2.10$\times$ speedup.
+We conduct extensive evaluations of SpecSys across three LLMs, two hardware platforms, four agent workloads, three agent workflows, and two real-world online serving traces. Compared with strong baselines, including ThunderAgent and vLLM with Dynamic SD, \textsc{SpecSys} reduces average job completion time (JCT), achieving from 1.18$\times$  to 2.10$\times$ speedup.

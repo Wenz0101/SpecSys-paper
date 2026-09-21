@@ -19,7 +19,7 @@
 \label{sec:4.1}
 % 总起，分成三部分：外部接口，scheduler，worker
 To support customizable SD selection policies at the upper layer, SpecSys extends the underlying inference engine with an externally controllable runtime SD switch.
-As shown in Figure~\ref{fig:sd_switch}, this design consists of three components: an external control interface, an iteration-level state transition mechanism in the scheduler, and mode-specific execution paths in the worker.
+As shown in~\autoref{fig:sd_switch}, this design consists of three components: an external control interface, an iteration-level state transition mechanism in the scheduler, and mode-specific execution paths in the worker.
 
 % 外部接口
 \textbf{External Control Interface.}
@@ -35,7 +35,7 @@ At the beginning of the next iteration, the scheduler commits the expected state
 
 % worker
 \textbf{Mode-Specific Worker Execution.}
-As Non-SD and SD follow different execution flows and kernel paths (Section~\ref{sec:3.1}), SpecSys preserves separate execution branches for the two modes. 
+As Non-SD and SD follow different execution flows and kernel paths (in~\autoref{sec:3.1}), SpecSys preserves separate execution branches for the two modes. 
 During engine initialization, CUDA Graphs for both modes are prepared in advance. 
 At runtime, the worker selects the corresponding execution branch and CUDA Graph based on the mode specified in \texttt{SchedulerOutput}. 
 Within each iteration, all requests in the batch follow the same execution mode and therefore share the same execution path, ensuring consistent batch execution while enabling low-overhead iteration-level switching.
@@ -44,7 +44,7 @@ Within each iteration, all requests in the batch follow the same execution mode 
 \subsection{Agent Remaining-Step Prediction}
 \label{sec:4.2}
 % 介绍预测方法的动机
-Based on our profiling results, we find that agent execution patterns vary across workflows and workloads, while the llm request prompt provides additional information about the current execution state. 
+Based on our profiling results (\autoref{step-distribution}), we find that agent execution patterns vary across workflows and workloads, while the llm request prompt provides additional information about the current execution state. 
 We categorize the workflows considered in our study into three types:
 \begin{itemize}
     \item \textbf{Type A} represents planning-based workflows, such as Plan-and-Solve, where the planned step count can be directly extracted from the prompt, making prediction straightforward.
@@ -56,6 +56,7 @@ We categorize the workflows considered in our study into three types:
 \textbf{Request-Level Information Extraction.}
 For each LLM request, the upstream agent application provides the workflow, workload, and current execution step as metadata. 
 SpecSys further parses the prompt for state-indicative keywords related to errors, repeated actions, completion, and termination, and maps the request to a workflow-specific execution state.
+Examples of this information extraction process are provided in~\autoref{prompt_parser}.
 
 % 分类保存历史记录
 \textbf{Offline History Profiling.}
@@ -100,8 +101,9 @@ When the fine-grained statistics are insufficient, SpecSys progressively falls b
 
 % 离线 profile 出不同配置下的 SD加速比与推理负载的关系，得到一个平衡点。
 \textbf{Offline SD Speedup Profiling.}
-For each model and hardware configuration, SpecSys profiles the relationship between serving load and SD speedup, and identifies a break-even load $B^{*}$. 
-SD is beneficial below $B^{*}$, while its overhead can cause performance degradation above this point.
+\label{sec:4.3.1}
+For each model and hardware configuration, SpecSys profiles the relationship between serving load and SD speedup, and identifies a break-even load $B^{*}$.
+SD is beneficial below $B^{*}$, while its overhead can cause performance degradation above this point. Detailed profiling results are provided in~\autoref{sd-speedup}.
 
 % 负载估计
 \textbf{Future-Load Estimation.}
@@ -133,5 +135,5 @@ j^{*} =
 \operatorname*{arg\,min}_{j \in \mathcal{Q}}
 \hat{R}_{j}.
 \end{equation}
-where $\mathcal{Q}$ denotes the queued agent tasks and $\hat{R}_{j}$ is the remaining steps of task $j$ estimated by the predictor in Section~\ref{sec:4.2}.
+where $\mathcal{Q}$ denotes the queued agent tasks and $\hat{R}_{j}$ is the remaining steps of task $j$ estimated by the predictor in~\autoref{sec:4.2}.
 This strategy prioritizes tasks closer to completion, thereby mitigating the queue bottleneck under high serving load.

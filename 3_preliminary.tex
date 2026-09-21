@@ -27,8 +27,8 @@ We therefore abstract each inference iteration as:
 % 说明将二者强行统一成一条路径的问题
 Consequently, Non-SD and SD differ in both execution flow and kernel usage. Unifying them into a single execution path would require extra alignment or force one mode to use a suboptimal kernel, introducing unnecessary overhead.
 
-% Agent 工作流的问题定义
-\subsection{Agent Workflow and Scheduling Objective}
+% Agent 任务的调度优化问题定义
+\subsection{Scheduling Objective for Agent Tasks}
 
 % 简要介绍 agent task 的特点
 Unlike conventional LLM tasks, agent tasks are typically executed as multi-step workflows consisting of multiple dependent steps. 

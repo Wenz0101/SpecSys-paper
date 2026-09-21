@@ -14,7 +14,7 @@ SGLang Adaptive SD further incorporates token acceptance rate and selects the sp
 
 % 说明我们与他们的不同
 These approaches primarily focus on adapting the draft length within SD, whereas SpecSys determines whether SD should be enabled, making the two directions complementary. 
-Although some existing methods allow the draft length to be reduced to zero, this pseudo-Non-SD mode may still retain SD overhead. 
+Although some existing methods allow the draft length to be reduced to zero, this pseudo-Non-SD mode may still retain SD overhead (details in\autoref{non-sd-overhead}). 
 In contrast, SpecSys switches directly between native SD and Non-SD execution paths, substantially reducing the overhead when SD is disabled. 
 Moreover, existing adaptation policies are typically predefined at engine startup, while SpecSys exposes an external runtime interface that allows arbitrary upper-layer policies to control SD dynamically.
 
@@ -31,6 +31,6 @@ Autellix~\citep{Autellix} treats agent programs as first-class scheduling units 
 
 % 说明我们与他们的不同
 % 与 LLM 层面的预测和调度的不同
-On the one hand, compared with request-level scheduling methods that estimate the remaining generation length of individual LLM requests, SpecSys operates at a higher granularity by estimating the remaining steps of an entire agent task across multiple LLM calls.
+On the one hand, compared with request-level scheduling methods that estimate the remaining generation length of individual LLM requests, SpecSys operates at a task-level granularity by estimating the remaining steps of an entire agent task across multiple LLM calls.
 % 与 Agent 层面的预测和调度的不同
 On the other hand, existing agent schedulers mainly rely on observed execution states or predictions of near-term execution stages, rather than explicitly estimating the remaining work of the entire agent task. SpecSys instead estimates the remaining number of agent steps and uses it to prioritize tasks closer to completion.

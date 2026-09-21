@@ -21,7 +21,7 @@ Our evaluation covers four datasets: \textbf{MBPP}\citep{MBPP}, \textbf{2WikiMul
 \label{Traces}
 Unlike evaluations based on fixed offline workloads, We use request arrival timestamps from two real-world serving traces, the \textbf{Qwen-Bailian Anonymous Dataset}~\citep{qwen-bailian} and \textbf{Microsoft Azure Traces}~\citep{azure}, to evaluate SpecSys under dynamic serving loads. 
 The Qwen-Bailian trace exhibits relatively smooth load variation, while the Azure trace shows more pronounced fluctuations. 
-Details are provided in appendix~\ref{online-trace-detail}.
+Details are provided in~\autoref{online-trace-detail}.
 
 \textbf{Baselines.}
 We compare SpecSys with \textbf{vLLM Dynamic SD} and \textbf{SGLang Adaptive SD} as adaptive speculative decoding baselines, and \textbf{ThunderAgent} as an agent scheduling baseline.
@@ -43,18 +43,18 @@ We use average \textbf{Job Completion Time (JCT)} as the primary metric for end-
 \end{figure}
 
 % 说明我们具体是怎么实现 SpecSys 的
-We extend two state-of-the-art LLM inference engines, vLLM and SGLang, with a runtime SD switching interface, as described in Section~\ref{sec:4.1}, and implement SpecSys's scheduling mechanism, as described in Section~\ref{sec:4.3}, by modifying the scheduler of ThunderAgent, a state-of-the-art agent-oriented task scheduling system.
+We extend two state-of-the-art LLM inference engines, vLLM and SGLang, with a runtime SD switching interface, as described in~\autoref{sec:4.1}, and implement SpecSys's scheduling mechanism, as described in~\autoref{sec:4.3}, by modifying the scheduler of ThunderAgent, a state-of-the-art agent-oriented task scheduling system.
 
 % 总体介绍实验
 We evaluate SpecSys under seven configurations covering different models, hardware platforms, and online serving traces, and compare it against four baseline configurations.
-Figure~\ref{fig:end2end_jct} shows the average JCT of all methods, which serves as our primary metric for end-to-end performance.
+\autoref{fig:end2end_jct} shows the average JCT of all methods, which serves as our primary metric for end-to-end performance.
 
 % 分点介绍实验结果
 
 % 不同的请求轨迹
 \textbf{Different Request Traces.}
 % 如附录所示，两种轨迹具有较大的差异性。 
-The Azure and QwenBailian traces exhibit substantially different load patterns (Appendix~\ref{Traces}), stressing different aspects of SpecSys.
+The Azure and QwenBailian traces exhibit substantially different load patterns (\autoref{Traces}), stressing different aspects of SpecSys.
 % Azure 轨迹的负载波动较大，其主要考验的是 SpecSys 根据不同负载能力选择性使用 SD 加速的策略。
 Accordingly, SpecSys achieves \textbf{1.18--1.64$\times$} speedup over the best baseline across different models and hardware configurations, demonstrating the benefit of adapting SD usage to changing serving loads.
 The Azure trace shows large and frequent load fluctuations, providing opportunities for SpecSys to selectively enable SD under favorable loads while avoiding its overhead under high load.
@@ -74,11 +74,12 @@ These results show that SpecSys is not specific to a particular model scale or f
 % 不同的环境
 \textbf{Different Hardware Platforms.}
 % 总起，说明两种环境刚好对应资源受限和资源富足的情况。
-The two hardware platforms represent substantially different resource regimes.
-The 4090-24G platform provides relatively limited GPU memory and low-bandwidth inter-GPU communication, representing a resource-constrained serving environment, whereas the A100-80GB platform provides abundant GPU memory and high-speed NVLink interconnects, representing a resource-abundant serving environment.
+Our evaluation covers two substantially different hardware resource regimes.
+The 4090-24G platform provides relatively limited GPU memory and low-bandwidth inter-GPU communication, representing a resource-constrained serving environment, whereas the A100-80GB platform provides abundant GPU memory and high-speed NV-Link interconnects, representing a resource-abundant serving environment.
+A detailed analysis of the hardware resource characteristics is provided in~\autoref{resource-analysis}.
 \begin{itemize}
     \item 
-        Under the resource-constrained setting, SpecSys benefits from both of its key mechanisms.
+        Under the resource-constrained setting, limited compute capability and memory resources introduce two challenges that SpecSys addresses through its SD switching and scheduling mechanisms, respectively.
         \begin{itemize}
             \item 
                 The system becomes compute-bound at relatively small running batch sizes, resulting in a low crossover point beyond which SD no longer provides acceleration.
@@ -90,33 +91,61 @@ The 4090-24G platform provides relatively limited GPU memory and low-bandwidth i
                 This allows SpecSys to complete jobs earlier and further reduce average JCT.
         \end{itemize}
     \item 
-        On the resource-rich A100 platform, abundant KV-cache capacity (Appendix~\ref{resource-analysis}) substantially reduces queueing, while its stronger compute capability pushes the SD crossover point to a higher load (Appendix~\ref{sd-speedup}), leaving less room for both scheduling and SD switching optimizations.
-        Nevertheless, SpecSys still achieves the lowest average JCT, although its relative speedup is smaller than in the resource-constrained setting.
-These results show that SpecSys provides larger benefits when serving resources are constrained, while remaining effective even when memory and compute resources are abundant.
+        Under the resource-abundant setting, abundant KV-cache capacity substantially reduces queueing, while its stronger compute capability increases the break-even load $B^{*}$ (defined in~\autoref{sec:4.1}), allowing SD to remain beneficial under higher serving loads.
+        Consequently, there is less room for both scheduling and SD switching optimizations.
+        Nevertheless, SpecSys still achieves the lowest average JCT, demonstrating its effectiveness even when the optimization headroom is limited.    
 \end{itemize}
 
-% 总结
 
-
-
+% 消融实验
 \subsection{Ablation Study}
+
+% 介绍剩余 Step 预测策略的准确率
+\textbf{Remaining-Step Prediction Accuracy.}
+We evaluate the predictor in~\autoref{sec:4.2} using Accuracy, Pair Accuracy, and Top-10\% Recall, which measure exact remaining-step prediction, pairwise ordering accuracy, and recall of the true shortest 10\% jobs, respectively.
+Since our scheduler mainly relies on queue ranking, the latter two metrics are more relevant.
+As shown in~\autoref{tab:prediction_performance}, Type-A achieves 100\% accuracy since its remaining steps are explicitly available from the planning prompt, while Type-B benefits from its multimodal step distribution.
+Although Type-C is more difficult to predict, state information still provides useful estimates.
+Overall, SpecSys achieves \textbf{84.1\% Pair Accuracy} and \textbf{82.2\% Top-10\% Recall}, providing reliable signals for scheduling.
+
+% 介绍消融实验
+
+% 对比调度策略
+\textbf{Impact of Scheduling.}
+We first evaluate the impact of SpecSys's remaining-step-aware scheduling.
+Compared with ThunderAgent (\autoref{fig:ablation}, 1), adding the SpecSys scheduler (\autoref{fig:ablation}, 4) reduces average JCT from 82.5\,s to 55.1\,s, corresponding to a \textbf{1.50$\times$} speedup.
+A similar improvement is observed when combined with vLLM DSD (\autoref{fig:ablation}, 2 vs 5), where average JCT decreases from 72.0\,s to 48.2\,s.
+These results show that prioritizing jobs with shorter predicted remaining steps is more effective for reducing average JCT than throughput-oriented scheduling alone.
+
+% 对比不同的动态 SD 实现方式
+\textbf{Impact of Dynamic SD Mechanisms.}
+We next compare different implementations of dynamic SD.
+Replacing vLLM DSD with SpecSys's runtime SD switching reduces average JCT from 72.0\,s to 64.6\,s under the ThunderAgent scheduler (\autoref{fig:ablation}, 2 vs 3). 
+When combined with the SpecSys scheduler, the average JCT further decreases from 48.2\,s with vLLM DSD to 44.5\,s with SpecSys (\autoref{fig:ablation}, 5 vs 6).
+This improvement mainly comes from SpecSys's lower overhead in Non-SD mode (see~\autoref{non-sd-overhead}), while preserving comparable performance to the baseline in SD mode.
+
+% 与理想情况的差距
+\textbf{Gap to Oracle.}
+Finally, we compare SpecSys with an oracle configuration that uses oracle remaining-step information for scheduling.
+The oracle configuration achieves an average JCT of 43.0\,s, compared with 44.5\,s for SpecSys, leaving only a \textbf{3.5\%} gap (\autoref{fig:ablation}, 6 vs 7).
+This small gap indicates that the predicted remaining steps are sufficient to achieve performance close to scheduling with ground-truth remaining steps.
+
 
 % 消融实验结果图
 \begin{figure}[t]
     \centering
 
-    % ==================== 左：预测准确率表格 ====================
-    \begin{minipage}[t]{0.45\linewidth}
+    % 预测方法性能指标表格
+    \begin{minipage}[t]{0.50\linewidth}
         \centering
-
-        \captionof{table}{Prediction accuracy.}
-        \label{tab:prediction_accuracy}
-
+        \captionof{table}{Remaining-step prediction performance across three workflow types. Pair Accuracy and Top-10\% Recall better reflect the quality of ranking signals used by downstream scheduling.}
+        \label{tab:prediction_performance}
+        \vspace{15pt}
         % 表格字号
         \small
 
         % 控制列间距
-        \setlength{\tabcolsep}{3.0pt}
+        \setlength{\tabcolsep}{2.5pt}
 
         % 控制行间距
         \renewcommand{\arraystretch}{2.0}
@@ -158,12 +187,12 @@ These results show that SpecSys provides larger benefits when serving resources 
 
     \end{minipage}
     \hfill
-    % ==================== 右：消融实验图 ====================
+    % 右：消融实验图
     \begin{minipage}[t]{0.45\linewidth}
         \vspace{0pt}
         \centering
         \includegraphics[width=\linewidth]{figures/4-ablation.pdf}
-        \captionof{figure}{Ablation study.}
+        \captionof{figure}{Ablation study of SpecSys on average JCT, showing the contribution of SD switching and scheduling.}
         \label{fig:ablation}
     \end{minipage}
 

@@ -1,27 +1,36 @@
 \appendix
 
 % Agent任务的 LLM 时间占比与瓶颈
-\section{}
-\label{}
+\section{LLM Time Breakdown and Bottleneck Analysis in Agent Tasks}
+\label{llm-time-ratio}
 
 % Agent任务使用 SD 的加速比随 Batch Size 的变化关系
 \section{SD Speedup}
 \label{sd-speedup}
 
-
-% 一致性实验
-\section{}
-\label{}
-
-
-% 推理引擎的动态 SD 额外开销对比
-\section{Overhead of Adaptive SD Method}
+% Non-SD 状态下动态 SD 方法的额外开销
+\section{Non-SD Overhead of Dynamic SD Methods}
 \label{non-sd-overhead}
 
+% SD 切换的一致性实验
+\section{Generation Consistency of Runtime SD Switching}
+\label{sd_consistency}
+
+
+% 列举不同 workflow 和 workload 的 step 分布
+\section{Agent Step Distributions across Workflows and Workloads}
+\label{step-distribution}
+
+
+% prompt 解析的实例
+\section{Examples of Prompt Parsing}
+\label{prompt_parser}
+
 % 轨迹的请求变化图
-\section{Online Traces}
+\section{Request Arrival Patterns of Online Serving Traces}
 \label{online-trace-detail}
 
-% 资源分析
-\section{resource analysis}
+
+% 不同硬件平台的资源分析
+\section{Serving Capacity Analysis}
 \label{resource-analysis}
