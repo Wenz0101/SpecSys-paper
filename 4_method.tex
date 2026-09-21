@@ -16,6 +16,7 @@
 
 % 1.支持 SD 动态切换的外部接口
 \subsection{Externally Controllable SD Switching}
+\label{sec:4.1}
 % 总起，分成三部分：外部接口，scheduler，worker
 To support customizable SD selection policies at the upper layer, SpecSys extends the underlying inference engine with an externally controllable runtime SD switch.
 As shown in Figure~\ref{fig:sd_switch}, this design consists of three components: an external control interface, an iteration-level state transition mechanism in the scheduler, and mode-specific execution paths in the worker.
@@ -95,6 +96,7 @@ When the fine-grained statistics are insufficient, SpecSys progressively falls b
 
 % 3.基于动态负载的 Agent 任务调度和 SD 选择
 \subsection{Load-Adaptive Agent Scheduling and SD Selection}
+\label{sec:4.3}
 
 % 离线 profile 出不同配置下的 SD加速比与推理负载的关系，得到一个平衡点。
 \textbf{Offline SD Speedup Profiling.}

@@ -18,6 +18,7 @@ To cover diverse agent execution patterns, we evaluate three representative work
 Our evaluation covers four datasets: \textbf{MBPP}\citep{MBPP}, \textbf{2WikiMultihopQA}\citep{2wiki}, \textbf{NL2Bash}\citep{nl2bash}, and \textbf{Spider}\citep{spider}, corresponding to coding, web search, Bash, and SQL tasks, respectively.
 
 \textbf{Online Traces.}
+\label{Traces}
 Unlike evaluations based on fixed offline workloads, We use request arrival timestamps from two real-world serving traces, the \textbf{Qwen-Bailian Anonymous Dataset}~\citep{qwen-bailian} and \textbf{Microsoft Azure Traces}~\citep{azure}, to evaluate SpecSys under dynamic serving loads. 
 The Qwen-Bailian trace exhibits relatively smooth load variation, while the Azure trace shows more pronounced fluctuations. 
 Details are provided in appendix~\ref{online-trace-detail}.
@@ -28,8 +29,142 @@ We compare SpecSys with \textbf{vLLM Dynamic SD} and \textbf{SGLang Adaptive SD}
 \textbf{Metric.}
 We use average \textbf{Job Completion Time (JCT)} as the primary metric for end-to-end agent latency, defined as the elapsed time from task arrival to completion of the final workflow step.
 
+\subsection{End-to-End Performance}
 
-\subsection{End-to-End Results}
+% 端到端实验结果图
+\begin{figure}[!b]
+    \begin{center}
+    \includegraphics[width=1.0\linewidth]{figures/3-end2end jct.pdf}
+    \end{center}
+    \caption{
+        End to End Avg Jct.
+    }
+    \label{fig:end2end_jct}
+\end{figure}
+
+% 说明我们具体是怎么实现 SpecSys 的
+We extend two state-of-the-art LLM inference engines, vLLM and SGLang, with a runtime SD switching interface, as described in Section~\ref{sec:4.1}, and implement SpecSys's scheduling mechanism, as described in Section~\ref{sec:4.3}, by modifying the scheduler of ThunderAgent, a state-of-the-art agent-oriented task scheduling system.
+
+% 总体介绍实验
+We evaluate SpecSys under seven configurations covering different models, hardware platforms, and online serving traces, and compare it against four baseline configurations.
+Figure~\ref{fig:end2end_jct} shows the average JCT of all methods, which serves as our primary metric for end-to-end performance.
+
+% 分点介绍实验结果
+
+% 不同的请求轨迹
+\textbf{Different Request Traces.}
+% 如附录所示，两种轨迹具有较大的差异性。 
+The Azure and QwenBailian traces exhibit substantially different load patterns (Appendix~\ref{Traces}), stressing different aspects of SpecSys.
+% Azure 轨迹的负载波动较大，其主要考验的是 SpecSys 根据不同负载能力选择性使用 SD 加速的策略。
+Accordingly, SpecSys achieves \textbf{1.18--1.64$\times$} speedup over the best baseline across different models and hardware configurations, demonstrating the benefit of adapting SD usage to changing serving loads.
+The Azure trace shows large and frequent load fluctuations, providing opportunities for SpecSys to selectively enable SD under favorable loads while avoiding its overhead under high load.
+% 而 QwenBailian 轨迹的负载波动较小，长期处于高负载，主要考验的是 SpecSys 的任务调度策略。
+In contrast, the QwenBailian trace remains at a relatively high load for long periods, leaving fewer opportunities for SD acceleration and placing greater importance on remaining-step-aware scheduling.
+Under this sustained high-load setting, directly enabling SD or existing dynamic SD schemes can even increase JCT, whereas SpecSys achieves \textbf{1.88$\times$} and \textbf{2.10$\times$} speedups on Qwen3-14B and Qwen3-32B, respectively.
+These results show that SpecSys benefits from selective SD switching under fluctuating loads, while its scheduling mechanism becomes particularly important under sustained high loads by completing short-remaining jobs earlier, reducing system load, and creating more favorable conditions for subsequent SD acceleration.
+
+% 不同的模型
+\textbf{Different Models.}
+% 从两个角度切入：不同的参数量，不同的模型家族
+SpecSys consistently improves end-to-end JCT across variations in both model scale and model family.
+For model scale, it achieves \textbf{1.25--2.10$\times$} speedup on Qwen3-14B and Qwen3-32B, and still provides a \textbf{1.18$\times$} speedup when scaling to the much larger model, Llama-3.3-70B-Instruct.
+For model family, SpecSys remains effective across both Qwen3 and Llama models.
+These results show that SpecSys is not specific to a particular model scale or family, but persist across heterogeneous LLM serving workloads.
+
+% 不同的环境
+\textbf{Different Hardware Platforms.}
+% 总起，说明两种环境刚好对应资源受限和资源富足的情况。
+The two hardware platforms represent substantially different resource regimes.
+The 4090-24G platform provides relatively limited GPU memory and low-bandwidth inter-GPU communication, representing a resource-constrained serving environment, whereas the A100-80GB platform provides abundant GPU memory and high-speed NVLink interconnects, representing a resource-abundant serving environment.
+\begin{itemize}
+    \item 
+        Under the resource-constrained setting, SpecSys benefits from both of its key mechanisms.
+        \begin{itemize}
+            \item 
+                The system becomes compute-bound at relatively small running batch sizes, resulting in a low crossover point beyond which SD no longer provides acceleration.
+                Consequently, Non-SD is preferred for a large fraction of execution.
+                Existing dynamic SD baselines still retain additional SD-related overhead in this regime and can even perform worse than pure Non-SD.In contrast, SpecSys performs a more complete runtime switch and incurs lower overhead in Non-SD mode, leading to faster inference and lower average JCT.
+            \item 
+                Limited KV-cache capacity constrains the runnable batch size and causes more requests to remain queued.
+                ThunderAgent primarily optimizes spatial utilization by admitting as many requests as possible within the available memory to maximize throughput, whereas SpecSys additionally considers the temporal dimension by prioritizing jobs with shorter predicted remaining execution time.
+                This allows SpecSys to complete jobs earlier and further reduce average JCT.
+        \end{itemize}
+    \item 
+        On the resource-rich A100 platform, abundant KV-cache capacity (Appendix~\ref{resource-analysis}) substantially reduces queueing, while its stronger compute capability pushes the SD crossover point to a higher load (Appendix~\ref{sd-speedup}), leaving less room for both scheduling and SD switching optimizations.
+        Nevertheless, SpecSys still achieves the lowest average JCT, although its relative speedup is smaller than in the resource-constrained setting.
+These results show that SpecSys provides larger benefits when serving resources are constrained, while remaining effective even when memory and compute resources are abundant.
+\end{itemize}
+
+% 总结
+
 
 
 \subsection{Ablation Study}
+
+% 消融实验结果图
+\begin{figure}[t]
+    \centering
+
+    % ==================== 左：预测准确率表格 ====================
+    \begin{minipage}[t]{0.45\linewidth}
+        \centering
+
+        \captionof{table}{Prediction accuracy.}
+        \label{tab:prediction_accuracy}
+
+        % 表格字号
+        \small
+
+        % 控制列间距
+        \setlength{\tabcolsep}{3.0pt}
+
+        % 控制行间距
+        \renewcommand{\arraystretch}{2.0}
+
+        \begin{tabular}{lrrrr}
+            \hline
+            & \textbf{Type-A}
+            & \textbf{Type-B}
+            & \textbf{Type-C}
+            & \textbf{Overall} \\
+            \hline
+
+            \#Items
+            & 2167
+            & 3504
+            & 1611
+            & 7282 \\
+
+            Accuracy
+            & 1.000
+            & 0.616
+            & 0.535
+            & 0.713 \\
+
+            Pair Accuracy
+            & 1.000
+            & 0.748
+            & 0.756
+            & 0.841 \\
+
+            Top-10\% Recall
+            & 1.000
+            & 0.630
+            & 0.673
+            & 0.822 \\
+
+            \hline
+        \end{tabular}
+
+    \end{minipage}
+    \hfill
+    % ==================== 右：消融实验图 ====================
+    \begin{minipage}[t]{0.45\linewidth}
+        \vspace{0pt}
+        \centering
+        \includegraphics[width=\linewidth]{figures/4-ablation.pdf}
+        \captionof{figure}{Ablation study.}
+        \label{fig:ablation}
+    \end{minipage}
+
+\end{figure}
