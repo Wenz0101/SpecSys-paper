@@ -27,3 +27,6 @@ SpecSys further employs a lightweight history-based estimator to predict the rem
 Based on the online serving load, SpecSys selectively enables SD under low load to alleviate the decoding bottleneck, while prioritizing tasks with fewer predicted remaining steps under high load to reduce queueing delay. 
 % 介绍实验
 We conduct extensive evaluations across three LLMs, four agent tasks, three agent workflows, and two hardware platforms. Compared with strong baselines, including ThunderAgent, vLLM Dynamic SD and SGLang Adaptive SD, SpecSys reduces average job completion time (JCT), achieving 1.18$\times$--2.10$\times$ speedups.
+% 仓库链接
+The source code of SpecSys is anonymously available at
+\url{https://anonymous.4open.science/r/SpecSys-Code-E03D/}.
