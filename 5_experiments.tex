@@ -122,7 +122,7 @@ These results show that prioritizing jobs with shorter predicted remaining steps
 We next compare different implementations of dynamic SD.
 Replacing vLLM DSD with SpecSys's runtime SD switching reduces average JCT from 72.0\,s to 64.6\,s under the ThunderAgent scheduler (\autoref{fig:ablation}, 2 vs 3). 
 When combined with the SpecSys scheduler, the average JCT further decreases from 48.2\,s with vLLM DSD to 44.5\,s with SpecSys (\autoref{fig:ablation}, 5 vs 6).
-This improvement mainly comes from SpecSys's lower overhead in Non-SD mode (see~\autoref{non-sd-overhead}), while preserving comparable performance to the baseline in SD mode.
+This improvement mainly comes from SpecSys's lower overhead in Non-SD mode (see~\autoref{dynamic-sd-comparison}), while preserving comparable performance to the baseline in SD mode.
 
 % 与理想情况的差距
 \textbf{Gap to Oracle.}

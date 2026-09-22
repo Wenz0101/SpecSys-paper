@@ -24,7 +24,7 @@ Our profiling of agent workloads (\autoref{sd-speedup}) reveals the same trend. 
 % 3-1.介绍 Dynamic SD 
 Recent dynamic SD approaches adapt the draft length according to runtime signals such as batch size and token acceptance rate, and may reduce the draft length to zero when speculation is unfavorable~\cite{TurboSpec,SpecDec++,Nightjar}. 
 % 3-2.说明 Dynamic SD 的局限性。
-But these approaches perform adaptation internally within the speculative decoding framework rather than explicitly switching between native SD and non-SD execution paths. Our experiments show that such internal adaptation can still incur noticeable overhead compared with native non-SD execution.
+But these approaches perform adaptation internally within the speculative decoding framework rather than explicitly switching between native SD and non-SD execution paths. Our experiments show that such internal adaptation can still incur noticeable overhead compared with native non-SD execution (\autoref{dynamic-sd-comparison}). 
 Moreover, their systems typically rely on predefined switching policies, without exposing runtime control to external schedulers, which limits customized SD selection based on higher-level scheduling decisions.
 
 % 4. 引入两个挑战
