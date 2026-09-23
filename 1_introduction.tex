@@ -55,7 +55,7 @@ Firstly, SpecSys extends the inference engine with an externally controllable sw
 To reduce the end-to-end latency of agent jobs, SpecSys employs different optimization strategies according to the dominant performance bottleneck under different concurrency.
 % 在并发度较低时，SpecSys 会根据离线profile的数据评估 SD 加速比，选择性地调用上述接口启用或禁用 SD，以缓解Decode瓶颈。
 Under low concurrency, SpecSys estimates the benefit of SD based on offline profiling results and selectively enables or disables SD through the aforementioned switching interface to alleviate the decoding bottleneck.
-% 在并发度较高时，SpecSys 会根据 Agent 任务传入的workload，workflow，当前step，以及prompt中解析得到的关键词，使用历史记录分类查表的方式预测 Agent 任务的剩余 Step 数，然后贪心地选择哪些剩余 Step 数较低的任务，以缓解排队瓶颈。
+% 在并发度较高时，SpecSys 会根据 Agent 任务传入的 workload，workflow，当前step，以及prompt 中解析得到的关键词，使用历史记录分类查表的方式预测 Agent 任务的剩余 Step 数，然后贪心地选择哪些剩余 Step 数较低的任务，以缓解排队瓶颈。
 Under high concurrency, SpecSys uses a lightweight history-based estimator to predict the remaining steps of each agent job based on its workload, workflow, current step, and prompt-derived keywords, and greedily prioritizes jobs with fewer predicted remaining steps to alleviate the queueing bottleneck.
 
 Our contributions can be summarized as follows:
@@ -66,7 +66,7 @@ Our contributions can be summarized as follows:
     We extend the inference engine with an externally controllable switching interface that enables complete iteration-level switching between native SD and non-SD execution modes, reducing runtime overhead by up to 71.3\%.
     % 轻量级的 Agent 任务剩余 Step 预测器。
     \item \textbf{Lightweight Agent Remaining-Step Prediction.}
-    We design a lightweight history-based estimator that predicts the remaining steps of an agent job using its workload, workflow, current step, and prompt-derived keywords, achieving an average prediction accuracy of 84.1\% and recall of 82.2\%.
+    We design a lightweight history-based estimator that predicts the remaining steps of an agent job using its workload, workflow, current step, and prompt-derived keywords, achieving an average pair prediction accuracy of 84.1\% and top-10\% recall of 82.2\%.
     % 基于并发度联合优化 Agent 任务调度和 SD 切换。
     \item \textbf{Load-Adaptive Agent Scheduling and SD Selection.}
     We selectively enable SD based on offline profiling under low concurrency, while disabling SD and prioritizing jobs with fewer predicted remaining steps under high concurrency.

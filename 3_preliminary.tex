@@ -19,10 +19,17 @@ We therefore abstract each inference iteration as:
 % 介绍 Non-SD 和 SD 两种模式的区别
 \begin{itemize}
     % Non-SD
-    \item \textbf{Non-SD execution mode}. \texttt{Execute\_Model} performs a standard LLM forward pass using a \textbf{decode kernel} and produces logits for the next token of each request.
-    \texttt{Sample\_Tokens} then samples the next token from the resulting logits.
+    \item \textbf{Non-SD execution mode}.
+    \texttt{Execute\_Model} performs a standard LLM forward pass with a
+    \textbf{decode kernel}, producing next-token logits for each request.
+    \texttt{Sample\_Tokens} then samples one token from these logits.
+
     % SD
-    \item \textbf{SD execution mode}. \texttt{Execute\_Model} performs LLM verification over multiple draft tokens in parallel using a \textbf{prefill-style kernel} for multi-token queries. \texttt{Sample\_Tokens} then invokes the drafter to generate draft tokens for subsequent verification.
+    \item \textbf{SD execution mode}.
+    \texttt{Execute\_Model} verifies multiple draft tokens in parallel using a
+    \textbf{prefill-style kernel} for multi-token queries.
+    \texttt{Sample\_Tokens} then invokes the drafter to generate tokens for
+    subsequent verification.
 \end{itemize}
 % 说明将二者强行统一成一条路径的问题
 Consequently, Non-SD and SD differ in both execution flow and kernel usage. Unifying them into a single execution path would require extra alignment or force one mode to use a suboptimal kernel, introducing unnecessary overhead.
