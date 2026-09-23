@@ -29,6 +29,8 @@ We compare SpecSys with \textbf{vLLM Dynamic SD} and \textbf{SGLang Adaptive SD}
 \textbf{Metric.}
 We use average \textbf{Job Completion Time (JCT)} as the primary metric for end-to-end agent latency, defined as the elapsed time from task arrival to completion of the final workflow step.
 
+A detailed analysis of the agent request characteristics and available hardware resources across different serving configurations is provided in~\autoref{request-and-resource-analysis}.
+
 \subsection{End-to-End Performance}
 
 % 端到端实验结果图
@@ -76,7 +78,7 @@ These results show that SpecSys is not specific to a particular model scale or f
 % 总起，说明两种环境刚好对应资源受限和资源富足的情况。
 Our evaluation covers two substantially different hardware resource regimes.
 The 4090-24G platform provides relatively limited GPU memory and low-bandwidth inter-GPU communication, representing a resource-constrained serving environment, whereas the A100-80GB platform provides abundant GPU memory and high-speed NV-Link interconnects, representing a resource-abundant serving environment.
-A detailed analysis of the hardware resource characteristics is provided in~\autoref{resource-analysis}.
+
 \begin{itemize}
     \item 
         Under the resource-constrained setting, limited compute capability and memory resources introduce two challenges that SpecSys addresses through its SD switching and scheduling mechanisms, respectively.

@@ -52,11 +52,36 @@ As a result, the performance bottleneck shifts from decoding at low serving load
 
 \clearpage
 
-% Agent任务使用 SD 的加速比随 Batch Size 的变化关系
+% Agent 任务使用 SD 的加速比随 Batch Size 的变化关系
 \section{Impact of Batch Size on SD Speedup for Agent Tasks}
 \label{sd-speedup}
 
-% 暂时占个位置
+\begin{figure}[H]
+    \begin{center}
+    \includegraphics[width=1.0\linewidth]{figures/sd_speedup.pdf}
+    \end{center}
+    \caption{SD speedup under different serving loads, model configurations, and draft lengths. Across both RTX 4090 and A100 GPUs, the benefit of SD generally decreases as batch size increases and can eventually become negative, while the optimal draft length also varies with serving load.}
+    \label{fig:sd-speedup}
+\end{figure}
+
+To understand how serving load affects the effectiveness of speculative decoding, we measure the SD speedup across different batch sizes, GPU platforms, model configurations, and draft lengths, as shown in~\autoref{fig:sd-speedup}.
+Across all evaluated configurations, the benefit of SD consistently decreases as the batch size increases and eventually becomes negative under sufficiently high serving loads.
+
+Our experiments further reveal substantially different SD break-even points across hardware and model configurations.
+Specifically, the break-even batch sizes are 36 for 4090-14B-TP2 and 28 for 4090-32B-TP4, compared with 52 for A100-14B-TP1, 40 for A100-32B-TP2, and 64 for A100-70B-TP4.
+These results show that the serving load at which SD ceases to provide a performance benefit varies considerably across deployment configurations, highlighting the need to determine when SD should be enabled based on the specific serving environment.
+
+We further observe that the speedup decreases more rapidly on RTX 4090 GPUs than on A100 GPUs.
+In particular, A100 GPUs maintain positive SD speedup at larger batch sizes, resulting in a higher break-even batch size between SD and Non-SD execution.
+This observation suggests that the effective operating range of SD depends on the underlying hardware capability: more powerful GPUs can sustain the benefit of SD under higher serving loads, whereas less powerful GPUs enter the negative-speedup regime earlier.
+Consequently, dynamic SD selection has greater optimization opportunities on resource-constrained GPUs, where choosing between SD and Non-SD execution is more critical as the serving load changes.
+
+Different draft lengths exhibit the same overall trend.
+At low batch sizes, more aggressive configurations with longer draft lengths can achieve higher speedup, while increasing the batch size favors more conservative configurations with shorter draft lengths.
+This load-dependent behavior motivates existing dynamic SD approaches to adjust the draft length according to the current serving load.
+However, draft-length adaptation alone is insufficient at high loads: once the batch size becomes sufficiently large, even the most conservative configuration with a draft length of 1 can incur negative speedup.
+Therefore, an effective dynamic SD mechanism should not only adapt the draft length, but also be able to completely disable SD and switch to the native Non-SD execution path when speculative decoding is no longer beneficial.
+
 \clearpage
 
 % 对比不同动态 SD 方法
@@ -148,19 +173,26 @@ These results further demonstrate the benefit of SpecSys's more complete runtime
     \begin{center}
     \includegraphics[width=1.0\linewidth]{figures/step_distributions_combined.pdf}
     \end{center}
-    \caption{
-        step distributions.
-    }
+    \caption{Distribution of agent execution steps across different workflow--workload combinations.}
     \label{fig:step_distributions_combine}
 \end{figure}
+
+To investigate how agent step distributions relate to workloads and workflows, we evaluate six workload--workflow combinations, as shown in~\ref{fig:step_distributions_combine}.
+For the same workload, different workflows exhibit substantially different step distributions; similarly, under the same workflow, changing the workload also leads to noticeable distribution shifts.
+These observations suggest that agent step distributions are closely associated with the workload--workflow combination.
+
+To further validate this relationship, we compare step distributions across different datasets while keeping both the workload and workflow fixed, as shown in~\ref{fig:step_distributions_subset}.
+Despite using different datasets, the resulting step distributions remain broadly similar, further supporting our observation that the workload--workflow combination is a primary factor shaping the step distribution.
+
+Moreover, we observe a distinctive multimodal pattern for AgentFlow, a multi-step iterative workflow, where agent tasks tend to terminate at only a few specific step counts.
+
+This observation provides an opportunity to predict the remaining steps of an agent task and motivates our prediction method to model step distributions separately for different workflow--workload combinations.
 
 \begin{figure}[!b]
     \begin{center}
     \includegraphics[width=1.0\linewidth]{figures/step_distributions_subset.pdf}
     \end{center}
-    \caption{
-        ste pdistributions subset.
-    }
+    \caption{Distribution of Agent execution steps across datasets under the same workflow and task.}
     \label{fig:step_distributions_subset}
 \end{figure}
 
@@ -171,7 +203,428 @@ These results further demonstrate the benefit of SpecSys's more complete runtime
 \section{Examples of Prompt Parsing}
 \label{prompt_parser}
 
-% 暂时占个位置
+% Type-A 例子介绍
+\subsection{Example of Extraction For Type-A Workflows}
+
+The following prompt is taken from an execution trajectory generated by the Plan-and-Solve agent workflow on the SQL task:
+
+\begin{lstlisting}[
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    escapeinside={(*@}{@*)},
+    backgroundcolor=\color{codegray},
+    frame=single,
+    rulecolor=\color{gray!30},
+    framesep=4pt
+]
+{
+  "role": "user",
+  "content": "Question: Find the first names that are used for professionals or owners but are not used as dog names."
+}
+{
+  "role": "assistant",
+  "content": "### Understanding the Problem:\n"
+             "We are asked to find first names that are used for "
+             "professionals or owners but are not used as dog names.\n\n"
+             "---\n\n"
+             "(*@\textcolor{red}{\textbf{\#\#\# Plan:}}@*)\n"
+             "(*@\textcolor{red}{\textbf{1.}}@*) Check what tables are available to use.\n"
+             "(*@\textcolor{red}{\textbf{2.}}@*) Identify the tables that contain information about "
+             "professionals, owners, and dog names.\n"
+             "(*@\textcolor{red}{\textbf{3.}}@*) Write a query to extract all unique first names from "
+             "the professionals/owners table.\n"
+             "(*@\textcolor{red}{\textbf{4.}}@*) Write a query to extract all unique dog names from "
+             "the dog names table.\n"
+             "(*@\textcolor{red}{\textbf{5.}}@*) Write a query to find the first names that are in the "
+             "professionals/owners table but not in the dog names table.
+             "(*@{\#\#\# Step-by-Step Execution}@*)"
+}
+\end{lstlisting}
+
+For this type of agent workflow, the first LLM call generates an explicit plan, which is then included in the context of subsequent LLM calls during task execution. Therefore, the total number of planned steps can be directly extracted from the planning content. Specifically, we locate the \texttt{Plan:} marker and count the numbered items in the plan. In this example, five numbered items are identified, and thus \texttt{num\_plan\_steps} is set to 5.
+
+Since the upper-layer proxy can determine which LLM requests belong to the same Agent Task, the extracted \texttt{num\_plan\_steps} is bound to the corresponding task after it is first obtained. For subsequent LLM requests of the same task, the proxy directly retrieves this value and combines it with the \texttt{cur\_step} carried by the task to estimate the number of remaining steps, without repeatedly parsing the planning content.
+
+
+% Type-B 例子介绍
+\subsection{Example of Extraction For Type-B Workflows}
+
+Unlike Type-A, Type-B workflows do not produce a fixed plan whose
+length can be directly extracted. Instead, the proxy determines a
+coarse-grained execution state from the latest action and observation
+contained in each prompt. 
+
+% 初始状态
+\paragraph{Example 1: Initial State.}
+The following examples are taken from AgentFlow execution trajectories on the Web Searching tasks.
+The first request contains the original query but no previously
+executed action or observation:
+
+\begin{lstlisting}[
+basicstyle=\ttfamily\small,
+breaklines=true,
+escapeinside={(*@}{@*)},
+backgroundcolor=\color{codegray},
+frame=single,
+rulecolor=\color{gray!30},
+framesep=4pt
+]
+{
+"query": "Which film has the director who is older than the other, Let's Make Money or Short Term 12?",
+"available_tools": 
+    ["Generalist_Solution_Generator_Tool","Local_Web_Search_Tool"]
+}
+\end{lstlisting}
+
+Since no action has been completed, the proxy assigns the special
+state \texttt{start} to this request.
+
+% 问题状态/消极状态
+\paragraph{Example 2: Problem State.}
+The following examples are taken from AgentFlow execution trajectories on the Web Searching tasks.
+The next prompt contains the result of an unsuccessful search:
+\begin{lstlisting}[
+basicstyle=\ttfamily\small,
+breaklines=true,
+escapeinside={(*@}{@*)},
+backgroundcolor=\color{codegray},
+frame=single,
+rulecolor=\color{gray!30},
+framesep=4pt
+]
+{
+"query": "Which film has the director who is older than the other, Let's Make Money or Short Term 12?",
+"context": "Query: Let's Make Money director age, Short Term 12 director age",
+"sub_goal": "Find the directors of Let's Make Money and Short Term 12 along with their ages.",
+"tool_name": "Local_Web_Search_Tool",
+"command": "execution = tool.execute(
+query="Let's Make Money director age",
+result_num=3
+)
+execution = tool.execute(
+query="Short Term 12 director age",
+result_num=3
+)",
+"result": [
+"(*@\textcolor{red}{\textbf{No results found.}}@*)"
+]
+}
+\end{lstlisting}
+
+The phrase \texttt{No results found} matches the problem-related keyword \texttt{no results}, indicating that the latest action fails to obtain the expected information. Consequently, the proxy classifies the current state as \texttt{problem}. More generally, the problem state captures action outcomes that indicate unsuccessful execution, missing information, or invalid intermediate results. Other expressions that trigger this state include \texttt{error}, \texttt{failed}, \texttt{not found}, \texttt{unable}, \texttt{cannot}, \texttt{invalid}, \texttt{exception}, and \texttt{traceback}.
+
+
+% 积极状态
+\paragraph{Example 3: Positive State.}
+The following examples are taken from AgentFlow execution trajectories on the Coding tasks. 
+The latest tool execution indicates that the
+generated implementation passes all provided tests:
+
+\begin{lstlisting}[
+basicstyle=\ttfamily\small,
+breaklines=true,
+escapeinside={(*@}{@*)},
+backgroundcolor=\color{codegray},
+frame=single,
+rulecolor=\color{gray!30},
+framesep=4pt
+]
+{
+"query": "Write a Python function to insert a given string at the beginning of all items in a list.",
+"sub_goal": "Generate a Python function called add_string that uses {0} as a placeholder for each list item.",
+"tool_name": "Python_Code_Generator_Tool",
+"command": "execution = tool.execute(
+query="Write the add_string function and verify it using the provided tests."
+)",
+"result": {
+"printed_output": "(*@\textcolor{red}{\textbf{All test cases passed successfully.}}@*)",
+"execution_code": "def add_string(input_list, format_str):\n"
+"    return [format_str.format(item) "
+"for item in input_list]"
+}
+}
+\end{lstlisting}
+
+The result contains both \texttt{passed} and \texttt{successfully}, which match the positive-state keywords and indicate that the latest action has successfully achieved its intended sub-goal. The proxy therefore assigns the current state as \texttt{positive}. More generally, the positive state captures action outcomes that indicate successful execution, sufficient information, or progress toward task completion. Other expressions associated with this state include \texttt{verified}, \texttt{sufficient}, \texttt{answer}, and \texttt{final}.
+
+\clearpage
+
+
+% 中性状态
+\paragraph{Example 4: Neutral State.}
+The following examples are taken from AgentFlow execution trajectories on the Web Searching tasks.
+In the following prompt, the latest search action does not contain any predefined problem-related or positive-completion keywords:
+
+\begin{lstlisting}[
+basicstyle=\ttfamily\small,
+breaklines=true,
+escapeinside={(*@}{@*)},
+backgroundcolor=\color{codegray},
+frame=single,
+rulecolor=\color{gray!30},
+framesep=4pt
+]
+{
+"query": "Which film has the director who is older than the other, Let's Make Money or Short Term 12?",
+"context": "Query: Short Term 12 director age",
+"sub_goal": "Find the director and age of Short Term 12 using a more specific search query.",
+"tool_name": "Local_Web_Search_Tool",
+"command": "execution = tool.execute(
+query="Short Term 12 director age",
+result_num=5
+)",
+"result": [
+"Title: Destin Daniel Cretton - Wikipedia\n"
+"Snippet: Destin Yori Daniel Cretton "
+"(born November 23, 1978) is an American filmmaker.\n\n"
+"Title: Short Term 12 - Wikipedia\n"
+"Snippet: Short Term 12 is a 2013 American independent "
+"drama film written and directed by Destin Daniel Cretton."
+]
+}
+\end{lstlisting}
+
+Unlike the previous two states, the \texttt{neutral} state is not
+triggered by a dedicated set of keywords. Instead, it serves as the
+default state when the extracted content contains neither
+problem-related nor positive-completion keywords. 
+
+% 总结
+For each request, the proxy collects the latest action-related content, including the tool name, sub-goal, command, and observation, and concatenates these fields into a single text representation for state extraction. It then searches this text for the predefined problem-related and positive-completion keywords. Problem keywords are checked first to ensure that failed or abnormal tool executions are identified even when the same content also contains seemingly positive expressions. If no problem keyword is found, the proxy checks for positive keywords that indicate successful execution, sufficient information, or progress toward task completion. When neither type of keyword is detected, the current request is classified as \texttt{neutral}. In this way, each LLM request is mapped to one of the three task-independent states according to the outcome of its latest action.
+
+Since the upper-layer proxy can identify which LLM requests belong to the same Agent Task, it maintains a separate state sequence for each task. After the state of a newly arrived request is extracted, the state is appended to the sequence associated with that task. As the task proceeds through multiple LLM requests and tool executions, the sequence therefore incrementally records its execution progress. For example, a task may produce the following state sequence:
+\begin{lstlisting}[
+basicstyle=\ttfamily\small,
+backgroundcolor=\color{codegray},
+frame=single,
+rulecolor=\color{gray!30},
+framesep=4pt
+]
+["start", "neutral", "problem", "neutral", "positive"]
+\end{lstlisting}
+Here, \texttt{start} denotes the initial request, while the subsequent states summarize the outcomes of successive actions. Such a sequence provides a compact representation of the task's execution history without relying on task-specific semantic information.
+
+To estimate the number of remaining steps, the proxy compares the current task state with historical Type-B trajectories from the same workflow and workload. Specifically, it retrieves historical trajectories that reached the same extracted state at the same execution position as the current task. These matched trajectories provide empirical information about how many total steps tasks with similar execution progress typically require. If at least three matching trajectories are available, the proxy examines their endpoints and uses the most frequent endpoint as the estimated total number of steps. Using multiple matched trajectories avoids relying on a single potentially atypical execution.
+
+When fewer than three matching trajectories are available, the proxy falls back to the unconditional step distribution of the same workflow and workload. The remaining steps are then estimated by subtracting the current step from the predicted total number of steps.
+
+
+
+% Type-C 例子介绍
+\subsection{Example of Extraction For Type-C Workflows}
+
+Unlike Type-B, Type-C workflows follow a fine-grained ReAct pattern,
+where LLM requests interleave Thought, Action, and Observation steps.
+The proxy considers execution errors, repeated actions, and explicit
+task termination, producing five task-independent states:
+\texttt{start}, \texttt{normal}, \texttt{error}, \texttt{repeat}, and
+\texttt{final\_or\_submit}. 
+
+% 初始状态
+\paragraph{Example 1: Initial State.}
+The following examples are taken from ReAct on SQL Task.
+The first request contains the original question but no completed
+action or observation:
+
+\begin{lstlisting}[
+basicstyle=\ttfamily\small,
+breaklines=true,
+escapeinside={(*@}{@*)},
+backgroundcolor=\color{codegray},
+frame=single,
+rulecolor=\color{gray!30},
+framesep=4pt
+]
+{
+"role": "user",
+"content": "Question: What are different nationalities of people and the corresponding number of people from each nation?"
+}
+\end{lstlisting}
+
+Since no action has been completed, the proxy assigns the state
+\texttt{start}.
+
+% 普通状态
+\paragraph{Example 2: Normal State.}
+The following examples are taken from ReAct on SQL Task.
+In the following prompt, the latest action executes successfully and
+returns a valid observation:
+
+\begin{lstlisting}[
+basicstyle=\ttfamily\small,
+breaklines=true,
+escapeinside={(*@}{@*)},
+backgroundcolor=\color{codegray},
+frame=single,
+rulecolor=\color{gray!30},
+framesep=4pt
+]
+{
+"role": "user",
+"content":
+"Question: What are different nationalities of people and "
+"the corresponding number of people from each nation?\n"
+"Thought 4: The available information allows me to perform "
+"the next operation.\n"
+"Action 4: execute[SELECT Nationality, COUNT(*) "
+"FROM people GROUP BY Nationality]\n"
+"Observation 4: [('Russia', 6), ('Bulgaria', 1)]"
+}
+\end{lstlisting}
+
+Because the action succeeds, contains no execution error, and does not
+repeat the preceding action, the state is classified as
+\texttt{normal}.
+
+% 问题状态
+\paragraph{Example 3: Error State.}
+The following examples are taken from ReAct on SQL Task.
+In the next prompt, the agent attempts to access a nonexistent table:
+
+\begin{lstlisting}[
+basicstyle=\ttfamily\small,
+breaklines=true,
+escapeinside={(*@}{@*)},
+backgroundcolor=\color{codegray},
+frame=single,
+rulecolor=\color{gray!30},
+framesep=4pt
+]
+{
+"role": "user",
+"content":
+"Question: What are different nationalities of people and "
+"the corresponding number of people from each nation?\n"
+"Thought 1: I should inspect the countrylanguage table "
+"to determine whether it contains nationality information.\n"
+"Action 1: execute[DESC countrylanguage]\n"
+"Observation 1: (*@\textcolor{red}{\textbf{Error executing query:}}@*) "
+"Table 'poker_player.countrylanguage' "
+"(*@\textcolor{red}{\textbf{doesn't exist}}@*)"
+}
+\end{lstlisting}
+
+The expressions \texttt{Error executing} and \texttt{doesn't exist}
+indicate that the latest action failed during execution and therefore
+trigger the \texttt{error} state. The proxy detects such failures from
+the returned observation using a predefined set of error-related
+keywords and patterns. Other representative indicators include
+\texttt{does not exist}, \texttt{no such}, \texttt{unknown column},
+\texttt{syntax error}, \texttt{traceback}, and \texttt{exception}.
+This allows execution failures from different tools and task domains
+to be mapped to the same task-independent state.
+
+\clearpage
+
+% 重复状态
+\paragraph{Example 4: Repeated-Action State.}
+The following examples are taken from ReAct on SQL Task.
+In the following example, the same action is executed in two consecutive steps:
+
+\begin{lstlisting}[
+basicstyle=\ttfamily\small,
+breaklines=true,
+escapeinside={(*@}{@*)},
+backgroundcolor=\color{codegray},
+frame=single,
+rulecolor=\color{gray!30},
+framesep=4pt
+]
+{
+"role": "user",
+"content":
+"Question: Which owner has paid the largest amount of money "
+"in total for their dogs?\n"
+"Thought 6: I should inspect the available information.\n"
+"Action 6: (*@\textcolor{red}{\textbf{execute["DESC treatments"]}}@*)\n"
+"Observation 6: [('treatment_id', 'int'), "
+"('dog_id', 'int'), ('cost_of_treatment', 'decimal')]\n"
+"Thought 7: I need to inspect the relationship again.\n"
+"Action 7: (*@\textcolor{red}{\textbf{execute["DESC treatments"]}}@*)\n"
+"Observation 7: [('treatment_id', 'int'), "
+"('dog_id', 'int'), ('cost_of_treatment', 'decimal')]"
+}
+\end{lstlisting}
+
+After normalization, \texttt{Action 7} is identical to
+\texttt{Action 6}, so the proxy assigns the state \texttt{repeat}.
+
+
+% 最终状态/提交状态
+\paragraph{Example 5: Final-or-Submit State.}
+The following examples are taken from ReAct on SQL Task.
+Once the agent determines that the task has been completed, it submits
+the result:
+
+\begin{lstlisting}[
+basicstyle=\ttfamily\small,
+breaklines=true,
+escapeinside={(*@}{@*)},
+backgroundcolor=\color{codegray},
+frame=single,
+rulecolor=\color{gray!30},
+framesep=4pt
+]
+{
+"role": "user",
+"content":
+"Question: What are different nationalities of people and "
+"the corresponding number of people from each nation?\n"
+"Thought 4: I can count the number of people per nationality.\n"
+"Action 4: execute[SELECT Nationality, COUNT(*) "
+"FROM people GROUP BY Nationality]\n"
+"Observation 4: [('Russia', 6), ('Bulgaria', 1)]\n"
+"Thought 5: The result completely answers the question.\n"
+"Action 5: (*@\textcolor{red}{\textbf{submit}}@*)"
+}
+\end{lstlisting}
+
+Because the latest action contains \texttt{submit}, the proxy assigns
+the state \texttt{final\_or\_submit}. Actions containing
+\texttt{final}, or results explicitly marked as completed, are treated
+similarly.
+
+For each request, the proxy extracts the latest action, its
+observation, and the preceding action, and assigns the state according
+to the following priority:
+
+\begin{lstlisting}[
+basicstyle=\ttfamily\small,
+backgroundcolor=\color{codegray},
+frame=single,
+rulecolor=\color{gray!30},
+framesep=4pt
+]
+final_or_submit > error > repeat > normal
+\end{lstlisting}
+
+The extracted states are incrementally appended to the corresponding
+Agent Task, forming sequences such as:
+
+\begin{lstlisting}[
+basicstyle=\ttfamily\small,
+backgroundcolor=\color{codegray},
+frame=single,
+rulecolor=\color{gray!30},
+framesep=4pt
+]
+["start", "error", "normal",
+"repeat", "normal", "final_or_submit"]
+\end{lstlisting}
+
+Unlike Type-B, Type-C additionally conditions prediction on the
+transition between the previous and current states. The proxy first
+retrieves historical trajectories with the same previous state,
+current state, and execution position. If at least three matches are
+available, their endpoint distribution is used for prediction.
+Otherwise, it falls back to trajectories with the same current state
+and execution position, and then to the unconditional step
+distribution of the same workflow and workload if necessary. The
+median endpoint is used as the estimated total number of steps, from which the current step is subtracted to obtain the remaining-step estimate.
+ 
+
+
+
 \clearpage
 
 % 轨迹的请求变化图
@@ -224,23 +677,171 @@ This trace is therefore well suited for evaluating both the Non-SD overhead intr
 
 \clearpage
 
-% 不同硬件平台的资源分析
-\section{Serving Capacity Analysis}
-\label{resource-analysis}
+% 请求和资源分析
+\section{Agent Request Characteristics and System Capacity}
+\label{request-and-resource-analysis}
 
-% 暂时占个位置
+\begin{table}[H]
+    \centering
+    \caption{Statistics of different agent workload–workflow combinations.}
+    \label{tab:agent-workload-statistics}
+    \begin{tabular}{ccccc}
+        \toprule
+        \textbf{Workflow} & \textbf{Workload} & \textbf{Traces} &
+        \textbf{Avg. Prompt Tokens/Request} & \textbf{Avg. Steps} \\
+        \midrule
+        AgentFlow  & Web Search   & 100   & 1,502 & 12.84 \\
+        AgentFlow  & Coding    & 100   & 2,133 & 10.21 \\
+        Plan-Solve & Bash & 200   & 786   & 6.63 \\
+        Plan-Solve & SQL  & 200   & 627   & 6.21 \\
+        ReAct      & Bash & 200   & 2,293 & 3.32 \\
+        ReAct      & SQL  & 200   & 2,422 & 4.79 \\
+        \midrule
+        Overall    & All     & 1,000 & 1,504 & 6.49 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\textbf{Agent Request Analysis.} We summarize the characteristics of the agent execution traces used in our experiments in~\autoref{tab:agent-workload-statistics}. In total, the traces contain 1,000 execution traces across six workload--workflow combinations, with an average of 1,504 prompt tokens per request and 6.492 execution steps per task. The request characteristics vary substantially across different combinations. AgentFlow exhibits the largest average number of execution steps, reaching 12.84 steps on Web Search and 10.21 steps on Coding. In contrast, ReAct requires only 3.315 and 4.785 steps on Bash and SQL respectively, while having relatively long prompts of more than 2,000 tokens per request. Plan-Solve lies between these two workflows in terms of execution steps, while producing the shortest prompts among the evaluated combinations. These statistics demonstrate the diversity of request lengths and execution patterns covered by our experimental workloads.
+
+\begin{table}[H]
+    \centering
+    \caption{Memory usage and serving capacity under different configurations.}
+    \label{tab:serving-capacity}
+    \begin{tabular}{ccccc}
+        \toprule
+        \textbf{Configuration} &
+        \textbf{Weights/GPU} &
+        \textbf{KV Cache/GPU} &
+        \textbf{KV Tokens} &
+        \textbf{Requests Supported} \\
+        \midrule
+        4090-14B-TP2 & 15.25 GiB & 4.45 GiB  & 56,944  & 38  \\
+        4090-32B-TP4 & 16.33 GiB & 3.38 GiB  & 54,544  & 36  \\
+        A100-14B-TP1 & 30.12 GiB & 36.72 GiB & 234,768 & 156 \\
+        A100-32B-TP2 & 32.08 GiB & 33.96 GiB & 275,632 & 183 \\
+        A100-70B-TP4 & 33.93 GiB & 32.10 GiB & 415,525 & 276 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\textbf{Hardware Resource Configuration Analysis.} We further profile the inference-engine resource characteristics under the five experimental configurations, as shown in~\autoref{tab:serving-capacity}. The number of supported requests is estimated by dividing the KV token capacity by the average prompt length reported in~\autoref{tab:agent-workload-statistics}. On the RTX 4090 platform, the two configurations support only 36--38 concurrent requests, mainly due to the limited KV-cache capacity under the relatively tight GPU memory budget. These configurations therefore represent a resource-constrained serving environment. In contrast, the A100 configurations support approximately 156--276 requests, benefiting from their substantially larger GPU memory and KV-cache capacity, and thus represent a resource-abundant serving environment. Overall, these measurements are consistent with our experimental design, where the RTX 4090 serves as a resource-constrained configuration, while the A100 serves as a resource-abundant configuration.
+
+
+
 \clearpage
 
-% 不同通信频率的影响
-\section{Impact of Communication Frequency on System Performance}
-\label{communication-frequency}
-
-% 暂时占个位置
-\clearpage
 
 % 预测-调度策略的额外开销
 \section{Overhead of SpecSys Prediction and Scheduling}
 \label{prediction-scheduling-overhead}
 
-% 暂时占个位置
+\begin{table}[H]
+\centering
+\caption{Per-request scheduling overhead of ThunderAgent and SpecSys}
+\label{tab:request-scheduling-overhead}
+\begin{tabular}{lrr}
+\toprule
+Scheduling Method & Processing Time (ms/request) & Increase over ThunderAgent (ms) \\
+\midrule
+ThunderAgent & 0.05086 & -- \\
+SpecSys      & 0.13189 & 0.08103 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\autoref{tab:request-scheduling-overhead} compares the per-request scheduling overhead of ThunderAgent and SpecSys. ThunderAgent requires an average of \(0.05086\) ms per request, while SpecSys requires \(0.13189\) ms because it additionally estimates the remaining execution steps. The absolute increase is only \(0.08103\) ms per request. Compared with agent inference and tool-execution latencies, which typically range from hundreds of milliseconds to several seconds, this additional overhead is negligible.
+
+\begin{table}[H]
+\centering
+\caption{Paused-queue sorting overhead of ThunderAgent and SpecSys}
+\label{tab:paused-queue-sorting-overhead}
+\begin{tabular}{rrrr}
+\toprule
+Queue Size & ThunderAgent (ms) & SpecSys (ms) & Increase (ms) \\
+\midrule
+10     & 0.0059 & 0.0084 & 0.0024 \\
+100    & 0.0482 & 0.0706 & 0.0224 \\
+1,000  & 0.4815 & 0.7855 & 0.3040 \\
+10,000 & 5.8395 & 9.0944 & 3.2549 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\autoref{tab:paused-queue-sorting-overhead} reports the sorting overhead under different paused-queue sizes. SpecSys is slightly more expensive than ThunderAgent because it prioritizes programs according to their predicted remaining steps. With 1,000 paused programs, SpecSys adds only \(0.304\) ms over ThunderAgent. Even with 10,000 paused programs, the additional sorting time is approximately \(3.25\) ms. 
+Since ThunderAgent performs periodic scheduling at a configurable interval, this sorting overhead remains small relative to typical scheduling intervals.
+
+
 \clearpage
+
+
+\section{Experimental Hyperparameters}
+\label{app:hyperparameters}
+
+This section summarizes the major hyperparameters and software configurations used in our experiments. Unless otherwise specified, all compared methods use the same workload replay settings, model-generation parameters, and serving configurations under the same hardware setting.
+
+\paragraph{Agent Trace Collection and Replay.}
+We collect 1,000 execution trajectories from different agent datasets and agent tasks (Details in~\autoref{request-and-resource-analysis}).  Each trajectory records the input and output of every LLM invocation, together with the corresponding timestamps and complete request and response contents. We replay these collected trajectories during evaluation to emulate the execution behavior of real agents without repeatedly invoking the original agent environments. For each trace-driven experiment, we replay 4,096 agent tasks using the collected trajectories. The timestamps from the online inference trace are used to determine the task arrival times, with the beginning of the selected trace segment treated as the replay start time. To maintain workload diversity, we cyclically select trajectories from different task categories, ensuring that different types of agent tasks are interleaved during replay while preserving the temporal characteristics of the original inference trace.
+
+\paragraph{Inference Engine Configuration.}
+The GPU configuration and tensor-parallelism (TP) degree follow the model--hardware configurations described in the main experiments. For all inference engines, we set the GPU memory utilization to 0.85 and the maximum model context length to 20,480 tokens.
+
+\paragraph{LLM Generation Configuration.}
+All LLM requests use a temperature of 0, corresponding to greedy decoding, and the maximum number of generated tokens is set to 1,024. For Qwen models, we additionally disable the built-in thinking mode by setting
+\texttt{"chat\_template\_kwargs": \{"enable\_thinking": False\}}.
+This setting ensures that the evaluated requests follow the same non-thinking generation mode across experiments.
+
+\paragraph{ThunderAgent Configuration.}
+For ThunderAgent, we set both \texttt{metrics-interval} and \texttt{scheduler-interval} to 5.0 seconds. Accordingly, ThunderAgent periodically collects serving statistics and performs scheduling decisions at 5-second intervals.
+
+\paragraph{Speculative Decoding Configuration.}
+We use EAGLE-3 as the speculative decoding method. Both speculative decoding and standard decoding use a temperature of 0 to ensure deterministic greedy decoding. Unless otherwise specified, the draft length is fixed to 3.
+
+\paragraph{SD Switching Threshold.}
+The SD Switching thresholds for individual configurations are reported in the profiling experiments in~\autoref{sd-speedup}.
+
+\paragraph{Software Environment.}
+\autoref{tab:software-versions} lists the major software and system versions used in our experiments. Python versions used by the major agent and inference frameworks are summarized separately in~\autoref{tab:python-versions}.
+
+\begin{table}[H]
+    \centering
+
+    \begin{minipage}[t]{0.48\linewidth}
+        \centering
+        \caption{Software and system versions used in the experiments.}
+        \label{tab:software-versions}
+        \begin{tabular}{cc}
+            \toprule
+            \textbf{Component} & \textbf{Version} \\
+            \midrule
+            NVIDIA Driver & 595.91.07 \\
+            CUDA & 13.2 \\
+            ThunderAgent & 0.1.0 \\
+            qwen-agent & 0.0.34 \\
+            AgentFlow & 0.1.0 \\
+            SpecSys vLLM base & v0.17.1 \\
+            SpecSys SGLang base & v0.5.14 \\
+            vLLM Dynamic SD & v0.24.0 \\
+            SGLang Adaptive SD & v0.5.14 \\
+            \bottomrule
+        \end{tabular}
+    \end{minipage}
+    \hfill
+    \begin{minipage}[t]{0.48\linewidth}
+        \centering
+        \caption{Python versions used by different agent and inference frameworks.}
+        \label{tab:python-versions}
+        \begin{tabular}{cc}
+            \toprule
+            \textbf{Framework} & \textbf{Python Version} \\
+            \midrule
+            qwen-agent & 3.10 \\
+            ThunderAgent & 3.10 \\
+            AgentFlow & 3.11 \\
+            vLLM & 3.12 \\
+            SGLang & 3.12 \\
+            \bottomrule
+        \end{tabular}
+    \end{minipage}
+
+\end{table}

@@ -2,7 +2,7 @@
 
 \subsection{Adaptive Speculative Decoding}
 % 背景
-The effectiveness of speculative decoding depends on both token acceptance rate and serving load, as low acceptance wastes speculative computation while high serving loads increase batch size and verification cost. 
+The effectiveness of SD depends on both token acceptance rate and serving load, as low acceptance wastes speculative computation while high serving loads increase batch size and verification cost. 
 To address this issue, prior work has explored dynamically adjusting the draft length according to runtime signals.
 
 % 介绍现有工作
@@ -14,8 +14,8 @@ SGLang Adaptive SD further incorporates token acceptance rate and selects the sp
 
 % 说明我们与他们的不同
 These approaches primarily focus on adapting the draft length within SD, whereas SpecSys determines whether SD should be enabled, making the two directions complementary. 
-Although some existing methods allow the draft length to be reduced to zero, this pseudo-Non-SD mode may still retain SD overhead (details in\autoref{dynamic-sd-comparison}). 
-In contrast, SpecSys switches directly between native SD and Non-SD execution paths, substantially reducing the overhead when SD is disabled. 
+Although some existing methods allow the draft length to be reduced to zero, this pseudo-non-SD mode may still retain SD overhead (details in\autoref{dynamic-sd-comparison}). 
+In contrast, SpecSys switches directly between native SD and non-SD execution paths, substantially reducing the overhead when SD is disabled. 
 Moreover, existing adaptation policies are typically predefined at engine startup, while SpecSys exposes an external runtime interface that allows arbitrary upper-layer policies to control SD dynamically.
 
 \subsection{LLM and Agent Scheduling}

@@ -15,21 +15,21 @@ Our profiling (\autoref{llm-time-ratio}) reveals that the dominant latency bottl
 % 2-1.介绍 SD
 Speculative decoding (SD) is a widely adopted technique to accelerate LLM decoding by generating candidate tokens with a lightweight drafting mechanism and verifying them in parallel with the target model~\citep{SD1,SD2,Eagle}. 
 % 2-2.说明 Agent 场景下 SD 的机遇。
-Agent workloads provide additional opportunities for speculative decoding due to their repetitive and structured generation patterns, such as recurring intermediate outputs, tool calls, and schema-constrained responses~\citep{SuffixDecoding,ToolSpec,AgentSpec}.
+Agent workloads provide additional opportunities for SD due to their repetitive and structured generation patterns, such as recurring intermediate outputs, tool calls, and schema-constrained responses~\citep{SuffixDecoding,ToolSpec,AgentSpec}.
 % 2-3.介绍 SD 的局限性。
-However, the effectiveness of SD is highly sensitive to batch size. Previous studies have shown that SD speedup decreases as batch size increases and can eventually turn into performance degradation~\cite{SD-Speedup,SSSD,TurboSpec}. 
-Our profiling of agent workloads (\autoref{sd-speedup}) reveals the same trend. In online agent serving, however, the running batch size varies substantially over time due to dynamic request arrivals and intermittent tool execution between LLM calls.
+However, the effectiveness of SD is highly sensitive to batch size. Previous studies have shown that SD speedup for LLM inference decreases as batch size increases and can eventually turn into performance degradation~\cite{SD-Speedup,SSSD,TurboSpec}. 
+Our profiling (\autoref{sd-speedup}) reveals the same trend for agent workloads. In online agent serving, however, the running batch size varies substantially over time due to dynamic request arrivals and intermittent tool execution between LLM calls.
 
 % 3.介绍现有的 Dynamic SD 
 % 3-1.介绍 Dynamic SD 
 Recent dynamic SD approaches adapt the draft length according to runtime signals such as batch size and token acceptance rate, and may reduce the draft length to zero when speculation is unfavorable~\cite{TurboSpec,SpecDec++,Nightjar}. 
 % 3-2.说明 Dynamic SD 的局限性。
-But these approaches perform adaptation internally within the speculative decoding framework rather than explicitly switching between native SD and non-SD execution paths. Our experiments show that such internal adaptation can still incur noticeable overhead compared with native non-SD execution (\autoref{dynamic-sd-comparison}). 
+But these approaches perform adaptation internally within the SD framework rather than explicitly switching between native SD and non-SD execution paths. Our experiments show that such internal adaptation can still incur noticeable overhead compared with native non-SD execution (\autoref{dynamic-sd-comparison}). 
 Moreover, their systems typically rely on predefined switching policies, without exposing runtime control to external schedulers, which limits customized SD selection based on higher-level scheduling decisions.
 
 % 4. 引入两个挑战
 These observations raise two key challenges:
-\begin{enumerate}
+\begin{enumerate}%[leftmargin=*]
     % 如何更彻底地根据外部需求在 SD 和 NonSD 之间切换而不产生太多额外的开销
     \item \textbf{How to cleanly switch between SD and non-SD modes based on external decisions with less runtime overhead?}  
     % 在不同的并发度导致的瓶颈下如何降低 agent job 的端到端时延
