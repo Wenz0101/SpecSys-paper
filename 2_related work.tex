@@ -2,35 +2,55 @@
 
 \subsection{Adaptive Speculative Decoding}
 % 背景
-The effectiveness of SD depends on both token acceptance rate and serving load, as low acceptance wastes speculative computation while high serving loads increase batch size and verification cost. 
-To address this issue, prior work has explored dynamically adjusting the draft length according to runtime signals.
-
+% The effectiveness of SD depends on both token acceptance rate and serving load, as low acceptance wastes speculative computation while high serving loads increase batch size and verification cost. 
+% To address this, prior work has explored dynamically adjusting the draft length using runtime signals.
 % 介绍现有工作
-SpecDec++~\citep{SpecDec++} predicts candidate-token acceptance probabilities and dynamically adjusts the draft length for each drafting round.
-TurboSpec~\citep{TurboSpec} automatically profiles the serving environment and uses a feedback-based controller to dynamically adjust the speculation length at runtime, maximizing LLM serving goodput under varying workloads.
-Nightjar~\citep{Nightjar} similarly adapts the speculative length according to runtime load and batch size to improve the robustness of SD under varying serving conditions.
-vLLM Dynamic SD adjusts the number of speculative tokens according to the current batch size using a configurable batch-size-to-draft-length mapping.
-SGLang Adaptive SD further incorporates token acceptance rate and selects the speculative depth from a configurable batch-size-dependent candidate set.
-
+% SpecDec++~\citep{SpecDec++} predicts candidate-token acceptance probabilities and dynamically adjusts the draft length for each drafting round.
+% TurboSpec~\citep{TurboSpec} automatically profiles the serving environment and uses a feedback-based controller to dynamically adjust the speculation length at runtime, maximizing LLM serving goodput under varying workloads.
+% Nightjar~\citep{Nightjar} similarly adapts the speculative length according to runtime load and batch size to improve the robustness of SD under varying serving conditions.
+% vLLM Dynamic SD adjusts the number of speculative tokens according to the current batch size using a configurable batch-size-to-draft-length mapping.
+% SGLang Adaptive SD further incorporates token acceptance rate and selects the speculative depth from a configurable batch-size-dependent candidate set.
+% 引用更多论文，用简单的话串起来。
+Existing token-level adaptive SD approaches can be broadly divided into two categories: one line of work dynamically adjusts drafting parameters, particularly the draft length, based on signals such as token acceptance rate, serving load, batch size, SLOs, and runtime performance~\citep{SpecDec++,TurboSpec,BanditSpec,AdaSpec,Nightjar,Learning_To_Draft}, with similar mechanisms also adopted by vLLM's Dynamic SD~\citep{vLLM} and SGLang's Adaptive SD~\citep{SGLang}.
+Another line of work instead focuses on verification optimization, dynamically allocating or pruning the verification workload across requests according to SLOs, token acceptance rate, and system load to improve batched verification efficiency~\citep{AdaServe,D-Cut,ECHO,DSpark}.
 % 说明我们与他们的不同
-These approaches primarily focus on adapting the draft length within SD, whereas SpecSys determines whether SD should be enabled, making the two directions complementary. 
-Although some existing methods allow the draft length to be reduced to zero, this pseudo-non-SD mode may still retain SD overhead (details in\autoref{dynamic-sd-comparison}). 
-In contrast, SpecSys switches directly between native SD and non-SD execution paths, substantially reducing the overhead when SD is disabled. 
-Moreover, existing adaptation policies are typically predefined at engine startup, while SpecSys exposes an external runtime interface that allows arbitrary upper-layer policies to control SD dynamically.
+% These approaches primarily focus on adapting the draft length within SD, whereas SpecSys determines whether SD should be enabled, making the two directions complementary. 
+% Although some existing methods allow the draft length to be reduced to zero, this pseudo-non-SD mode may still retain SD overhead (detailed in~\autoref{dynamic-sd-comparison}). 
+% In contrast, SpecSys switches directly between native SD and non-SD execution paths, substantially reducing the overhead when SD is disabled. 
+% Moreover, existing adaptation policies are typically predefined at engine startup, while SpecSys exposes an external runtime interface that allows arbitrary upper-layer policies to control SD dynamically.
+% 描述改成更加简便
+These approaches optimize SD internally, typically using a zero draft length as a pseudo-non-SD configuration with residual overhead and fixed adaptation logic. 
+In contrast, SpecSys decides whether to enable SD, switches directly between native SD and non-SD paths, and exposes a runtime interface for arbitrary upper-layer control.
+
+
+% 介绍 agent 与 SD 结合的论文，说明我们跟他们的区别。
+Beyond optimizing SD within token-level generation, recent work extends speculative decoding from token-level generation to semantic-level reasoning~\citep{SpecReason,DREAM-R}, and further applies this paradigm to agent planning, action, or tool execution~\citep{Interactive_Speculative_Planning,Dynamic_Speculative_Agent_Planning,Speculative_Actions}.
+In contrast, these approaches primarily redesign the upper-level agent workflow, whereas SpecSys applies speculative decoding to the LLM requests within each agent job to accelerate inference without altering the agent structure, making it orthogonal to these approaches.
+% 简单阐述我们的方法理论上可以拓展到目前新兴的 speculative agent workflows
+In principle, our remaining-step prediction method could also be extended to such emerging speculative agent workflows by simply scaling the predicted number of remaining steps according to the speculative acceptance rate.
+
 
 \subsection{LLM and Agent Scheduling}
-% 介绍现有工作 - LLM 层面的预测和调度
-Existing LLM serving systems have explored size-based scheduling to mitigate head-of-line blocking and reduce request completion time. 
-SSJF~\citep{SSJF} uses a lightweight proxy model to predict output sequence lengths and prioritizes requests with shorter predicted generations. 
-Learning-to-Rank scheduling~\citep{LTR} instead predicts the relative ordering of output lengths to approximate shortest-job-first (SJF) scheduling without requiring exact length prediction. 
-TRAIL~\citep{TRAIL} further estimates the remaining generation length from intermediate LLM embeddings during decoding and applies a limited-preemption variant of shortest-remaining-processing-time (SRPT) scheduling.
 
-% 介绍现有工作 - Agent 层面的预测和调度
-Recent agent serving systems further exploit program-level and workflow-level information for scheduling. 
-Autellix~\citep{Autellix} treats agent programs as first-class scheduling units and prioritizes LLM calls based on program-level execution progress. Astraea~\citep{Astraea} incorporates historical execution states and future predictions into a hierarchical scheduler to optimize end-to-end job completion time. ThunderAgent~\citep{ThunderAgent} introduces program-aware scheduling that jointly considers LLM execution, KV-cache states, and tool resources.
 
-% 说明我们与他们的不同
-% 与 LLM 层面的预测和调度的不同
-On the one hand, compared with request-level scheduling methods that estimate the remaining generation length of individual LLM requests, SpecSys operates at a task-level granularity by estimating the remaining steps of an entire agent task across multiple LLM calls.
-% 与 Agent 层面的预测和调度的不同
-On the other hand, existing agent schedulers mainly rely on observed execution states or predictions of near-term execution stages, rather than explicitly estimating the remaining work of the entire agent task. SpecSys instead estimates the remaining number of agent steps and uses it to prioritize tasks closer to completion.
+% % 介绍现有工作 - LLM 层面的预测和调度
+% Existing LLM serving systems have explored size-based scheduling to mitigate head-of-line blocking and reduce request completion time. 
+% SSJF~\citep{SSJF} uses a lightweight proxy model to predict output sequence lengths and prioritizes requests with shorter predicted generations. 
+% Learning-to-Rank scheduling~\citep{LTR} instead predicts the relative ordering of output lengths to approximate shortest-job-first (SJF) scheduling without requiring exact length prediction. 
+% TRAIL~\citep{TRAIL} further estimates the remaining generation length from intermediate LLM embeddings during decoding and applies a limited-preemption variant of shortest-remaining-processing-time (SRPT) scheduling.
+
+% % 介绍现有工作 - Agent 层面的预测和调度
+% Recent agent serving systems further exploit program-level and workflow-level information for scheduling. 
+% Autellix~\citep{Autellix} treats agent programs as first-class scheduling units and prioritizes LLM calls based on program-level execution progress. Astraea~\citep{Astraea} incorporates historical execution states and future predictions into a hierarchical scheduler to optimize end-to-end job completion time. ThunderAgent~\citep{ThunderAgent} introduces program-aware scheduling that jointly considers LLM execution, KV-cache states, and tool resources.
+
+% % 说明我们与他们的不同
+% % 与 LLM 层面的预测和调度的不同
+% Among the above works, some \xiaoxi{please cite} propose scheduling methods based on the estimated remaining generation length of individual \xiaoxirev{steps of} LLM \xiaoxirev{calls within each agent task\footnote{In this work, we use `agent task' and `agent request' interchangeably.}} %requests, 
+% SpecSys operates at a granularity of the agent task by estimating the remaining steps of an entire agent task across multiple LLM calls \xiaoxi{why task level? as optimizing independently for individual steps might not be the global optimum in reducing the total JCT in the system.}.
+% % 与 Agent 层面的预测和调度的不同
+% Other agent schedulers \xiaoxi{cite} mainly rely on observed execution states or predictions of near-term execution stages, rather than explicitly estimating the remaining work of the entire agent task. SpecSys instead estimates the remaining number of agent steps and uses it to prioritize tasks closer to completion, \xiaoxirev{which follows the shortest-remaining-time-first principle to better approach the global optimum in JCT minimization.}
+
+Existing LLM schedulers optimize individual LLM requests through predicted output lengths or relative length rankings~\citep{SSJF,LTR}, online estimation of the remaining generation length~\citep{TRAIL}, preemptive queue-based scheduling~\citep{FastServe}, or memory-aware and SLO-aware scheduling based on estimated future resource demands~\citep{Past-Future,JITServe}. These methods operate primarily at the granularity of individual LLM calls. In contrast, SpecSys operates at the granularity of the entire agent task\footnote{In this work, we use `agent task' and `agent request' interchangeably.} by estimating its remaining steps across multiple LLM calls, since independently prioritizing individual calls may not align with minimizing the end-to-end JCT of agent tasks.
+
+Existing agent schedulers exploit application-level dependencies and dataflows~\citep{Parrot}, completed-call history or attained service~\citep{Agentix}, historical execution states and predicted future stages~\citep{Astraea}, program-level execution and resource states~\citep{ThunderAgent}, or workflow structure and cache information~\citep{Helium} to guide scheduling. However, they do not explicitly estimate the remaining work of an entire agent task. SpecSys instead estimates the remaining number of agent steps and prioritizes tasks closer to completion, following the shortest-remaining-time-first principle at the agent-task level to better align scheduling decisions with end-to-end JCT minimization.
+

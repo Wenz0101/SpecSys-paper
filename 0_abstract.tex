@@ -18,15 +18,17 @@ Our measurements reveal that the dominant bottleneck shifts with serving load: f
 % 引入 SD 说明 SD 和 Dynamic SD 的问题
 Speculative decoding (SD) is a state-of-the-art technique for accelerating LLM inference, but its benefits diminish as serving load increases and can even become negative under high load. Existing adaptive SD methods cannot eliminate this problem because they lack native non-SD execution, while conventional serving schedulers do not fully exploit workflow structure and completion progresses of agent tasks.
 % 提出我们的方法
-To address these challenges, we design SpecSys, an efficient inference system for agent workloads that combines load-aware selective SD with completion-aware scheduling. 
+To address these challenges, we design SpecSys, an efficient inference system for agent workloads that enables load-aware selective SD with completion-aware scheduling. 
 % 开放 SD 切换接口
-SpecSys exposes an externally controllable runtime interface that enables complete iteration-level switching between native SD and non-SD execution.
+\sysname exposes an externally controllable runtime interface that enables complete iteration-level switching between native SD and non-SD execution.
 % 预测 agent task 剩余 step 数
 It also employs a lightweight history-based estimator to predict the remaining steps of each agent task based on its workflow state and request characteristics. %, workload, current step, and prompt-derived keywords.
 % 基于负载调度任务和切换 SD
-SpecSys adapts these mechanisms with serving load: it selectively enables SD to reduce decoding latency under low load, while prioritizing tasks with fewer predicted remaining steps under high load to reduce queueing delay. 
+\sysname adapts these mechanisms with serving load: it selectively enables SD to reduce decoding latency under low load, while prioritizing tasks with fewer predicted remaining steps under high load to reduce queueing delay. 
 % 介绍实验
-Across three LLMs, four agent tasks, three agent workflows, and two hardware platforms, SpecSys achieves 1.18$\times$--2.10$\times$ speedups in average job completion time (JCT) over strong baselines, including ThunderAgent, vLLM Dynamic SD, and SGLang Adaptive SD. 
+% Across three LLMs, four agent tasks, three agent workflows, and two hardware platforms, \sysname achieves 1.18$\times$--2.10$\times$ speedups in average job completion time (JCT) over strong baselines, including ThunderAgent, vLLM Dynamic SD, and SGLang Adaptive SD. 
+% 改成在资源受限的设置下能够达到 2.1 的加速比
+Across three LLMs, four agent tasks, three agent workflows, and two hardware platforms, \sysname consistently reduces average job completion time (JCT) over strong baselines, including ThunderAgent, vLLM Dynamic SD, and SGLang Adaptive SD, achieving up to a 2.10$\times$ speedup under resource-constrained settings.
 % 仓库链接
-The source code of SpecSys is anonymously available at
+The source code of \sysname is anonymously available at
 \url{https://anonymous.4open.science/r/SpecSys-Code-E03D/}.

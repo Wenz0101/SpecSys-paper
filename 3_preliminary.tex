@@ -4,68 +4,96 @@
 \subsection{Inference System Execution Modes}
 \label{sec:3.1}
 % 介绍推理引擎的普通范式
-Modern LLM inference systems execute requests iteratively with continuous batching. At each iteration, the \textbf{scheduler} updates the set of running requests and constructs the execution configuration for the current batch. 
-The resulting scheduling information is then dispatched to \textbf{workers}, which perform model execution \textbf{\texttt{Execute\_Model}} followed by token processing \textbf{\texttt{Sample\_Tokens}}. 
-We therefore abstract each inference iteration as:
+% Modern LLM inference~\citep{vLLM, SGLang} systems execute requests iteratively with continuous batching. At each iteration, the \textbf{scheduler} updates the set of running requests and constructs the execution configuration for the current batch. 
+% The resulting scheduling information is then dispatched to \textbf{workers}, which perform model execution \textbf{\texttt{Execute\_Model}} followed by token processing \textbf{\texttt{Sample\_Tokens}}. 
+% We therefore abstract each inference iteration \xiaoxi{define iteration in terms of sd and non-sd respectively.} as:
+% \[
+% \text{Scheduler}
+% \rightarrow
+% \text{Workers}\left(
+% \texttt{Execute\_Model}
+% \rightarrow
+% \texttt{Sample\_Tokens}
+% \right).
+% \]
+In modern LLM inference systems such as vLLM~\citep{vLLM} and SGLang~\citep{SGLang}, an \textbf{inference iteration} refers to one complete scheduling-and-execution cycle. At each iteration, the \textbf{scheduler} updates the set of running requests and constructs the execution configuration for the current batch. The resulting scheduling information is then dispatched to \textbf{worker}, which perform model execution \textbf{\texttt{Execute\_Model}} followed by token processing \textbf{\texttt{Sample\_Tokens}}. Accordingly, each inference iteration follows the execution structure:
 \[
 \text{Scheduler}
 \rightarrow
-\text{Workers}\left(
+\text{Worker}\left(
 \texttt{Execute\_Model}
 \rightarrow
 \texttt{Sample\_Tokens}
 \right).
 \]
 % 介绍 Non-SD 和 SD 两种模式的区别
+Different generation mechanisms follow different execution paths within each inference iteration:
 \begin{itemize}
     % Non-SD
-    \item \textbf{Non-SD execution mode}.
-    \texttt{Execute\_Model} performs a standard LLM forward pass with a
-    \textbf{decode kernel}, producing next-token logits for each request.
+    \item \textbf{Non-SD Execution Path}.
+    \texttt{Execute\_Model} performs a standard LLM forward pass with a \textbf{decode-oriented execution pattern}, producing next-token logits for each LLM request. 
     \texttt{Sample\_Tokens} then samples one token from these logits.
 
     % SD
-    \item \textbf{SD execution mode}.
-    \texttt{Execute\_Model} verifies multiple draft tokens in parallel using a
-    \textbf{prefill-style kernel} for multi-token queries.
-    \texttt{Sample\_Tokens} then invokes the drafter to generate tokens for
-    subsequent verification.
+    \item \textbf{SD Execution Path}.
+    \texttt{Execute\_Model} verifies multiple draft tokens in parallel using a \textbf{prefill-style execution pattern} for multi-token queries.
+    \texttt{Sample\_Tokens} then aggregates the verification results from the LLM outputs and invokes the drafter to generate the draft tokens for subsequent verification.
 \end{itemize}
 % 说明将二者强行统一成一条路径的问题
-Consequently, Non-SD and SD differ in both execution flow and kernel usage. Unifying them into a single execution path would require extra alignment or force one mode to use a suboptimal kernel, introducing unnecessary overhead.
+% Consequently, non-SD and SD differ in both execution flow and kernel usage. Unifying them into a single execution path would require extra alignment or force one path to use a suboptimal kernel, introducing unnecessary overhead. \xiaoxi{Add one sentence to confirm existing vllm/sglang dynamic SD indeed incur such ``extra alignment'' overhead and cite Figure~\ref{fig:nonsd_overhead}.}
+Consequently, non-SD and SD differ in both execution path. Existing adaptive SD approaches such as vLLM's Dynamic SD and SGLang's Adaptive SD unify these two paths to support runtime adaptation. However, such unification requires additional alignment between the two execution modes or forces one mode to operate with a suboptimal computation kernel, thereby introducing unnecessary overhead (\autoref{dynamic-sd-comparison}).
+
 
 % Agent 任务的调度优化问题定义
 \subsection{Scheduling Objective for Agent Tasks}
 
 % 简要介绍 agent task 的特点
-Unlike conventional LLM tasks, agent tasks are typically executed as multi-step workflows consisting of multiple dependent steps. 
-For all serial agent workflows considered in this work, we abstract their execution as a ReAct-style pattern, where LLM inference and tool execution alternate throughout the workflow~\citep{ReAct}. 
-As a result, the end-to-end performance of an agent task depends on the execution of the entire workflow rather than the latency of any individual LLM request.
+Unlike LLM tasks, agent tasks are typically executed as multi-step workflows consisting of multiple dependent steps. The end-to-end performance of an agent task depends on the execution of the entire workflow rather than the latency of any individual LLM calls. 
+For all serial agent workflows considered in this work, we abstract their execution as a ReAct-style pattern for ease of presentation, where LLM inference and tool execution alternate throughout the workflow~\citep{ReAct}. 
+%As a result, the end-to-end performance of an agent task depends on the execution of the entire workflow rather than the latency of any individual LLM request.
 
 % 每个 agent 请求 R_i 包括 K_i 个 Step，每个 Step 包括一次 LLM 执行和一次 Tool 执行。
-For an agent request $R_i$, we represent its workflow as an ordered
-sequence of dependent steps,
+% \xiaoxirev{We define $R_i$ to denote each agent request indexed by $i$} and its workflow to be an ordered sequence of dependent steps, defined as
+% \begin{equation}
+% R_i = \langle S_i^1, S_i^2, \ldots, S_i^{K_i} \rangle,
+% \end{equation}
+% where $K_i$ denotes the total number of steps of $R_i$.
+% Each \xiaoxirev{$k^{th}$} step, \xiaoxirev{denoted as} $S_i^{k}$, consists of an LLM execution followed by an optional tool
+% execution before the next step can be issued.
+We define $R_i$ to denote each agent request indexed by $i$ and its workflow to be an ordered sequence of dependent steps, defined as
 \begin{equation}
 R_i = \langle S_i^1, S_i^2, \ldots, S_i^{K_i} \rangle,
 \end{equation}
 where $K_i$ denotes the total number of steps of $R_i$.
-Each step $S_i^{k}$ consists of an LLM execution followed by an optional tool
+Each $k^{th}$ step, denoted as $S_i^{k}$, consists of an LLM execution followed by an optional tool
 execution before the next step can be issued.
 
+
 % 一个 agent 请求 R_i 在某种调度策略下的总端到端 JCT 的构成
-Let $T_{\pi}^{\mathrm{Queue}}(S_i^j)$ denote the waiting time of step $S_i^j$ under scheduling policy $\pi$, $T^{\mathrm{LLM}}(S_i^j)$ denote its LLM execution time, and $T^{\mathrm{Tool}}(S_i^j)$ denote the tool execution time. The end-to-end Job Completion Time (JCT) of the agent request $R_i$ can be expressed as
+% Let $T_{\pi}^{\mathrm{Queue}}(S_i^j)$ denote the waiting time of step $S_i^j$ under scheduling policy $\pi$, $T^{\mathrm{LLM}}(S_i^j)$ denote its LLM execution time, and $T^{\mathrm{Tool}}(S_i^j)$ denote the tool execution time. The end-to-end Job Completion Time (JCT) of the agent request $R_i$ \xiaoxirev{under policy $\pi$} can be expressed as
+% \begin{equation}
+% \mathrm{JCT}_{\pi}(R_i) = \sum_{j=1}^{K_i} \left( T_{\pi}^{\mathrm{Queue}}(S_i^j) + T^{\mathrm{LLM}}(S_i^j) \right) + \sum_{j=1}^{K_i-1} T^{\mathrm{Tool}}(S_i^j).
+% \end{equation}
+Let $T_{\pi}^{\mathrm{Queue}}(S_i^j)$ denote the waiting time of step $S_i^j$ under scheduling policy $\pi$, $T^{\mathrm{LLM}}(S_i^j)$ denote its LLM execution time, and $T^{\mathrm{Tool}}(S_i^j)$ denote the tool execution time. The end-to-end Job Completion Time (JCT) of the agent request $R_i$ under policy $\pi$ can be expressed as
 \begin{equation}
 \mathrm{JCT}_{\pi}(R_i) = \sum_{j=1}^{K_i} \left( T_{\pi}^{\mathrm{Queue}}(S_i^j) + T^{\mathrm{LLM}}(S_i^j) \right) + \sum_{j=1}^{K_i-1} T^{\mathrm{Tool}}(S_i^j).
 \end{equation}
 
 % 优化问题：最小化一组 Agent 任务的平均端到端 JCT
-Given a set of agent requests $\mathcal{R}$, our scheduling objective is to find a feasible scheduling policy $\pi$ that minimizes the average end-to-end JCT:
+% Given a set of agent requests
+% $\mathcal{R}$, our scheduling objective is to find a feasible scheduling policy $\pi$ that minimizes the average end-to-end JCT \xiaoxirev{over all agent requests in $\mathcal{R}$}:
+% \begin{equation}
+% \pi^{*} = \arg\min_{\pi \in \Pi} \frac{1}{|\mathcal{R}|} \sum_{R_i \in \mathcal{R}} \mathrm{JCT}_{\pi}(R_i),
+% \end{equation}
+% where $\Pi$ denotes the set of feasible scheduling policies that respect the dependency between agent steps and the serving capacity of the inference system.
+Given a set of agent requests
+$\mathcal{R}$, our scheduling objective is to find a feasible scheduling policy $\pi$ that minimizes the average end-to-end JCT over all agent requests in $\mathcal{R}$:
 \begin{equation}
 \pi^{*} = \arg\min_{\pi \in \Pi} \frac{1}{|\mathcal{R}|} \sum_{R_i \in \mathcal{R}} \mathrm{JCT}_{\pi}(R_i),
 \end{equation}
-where $\Pi$ denotes the set of feasible scheduling policies that respect the dependency between agent steps and the serving capacity of the inference system.
+where $\pi$ denotes the set of feasible scheduling policies that respect the dependency between agent steps and the serving capacity of the inference system.
 
 % 引用论文说明这个优化问题是 NP-Hard
-This global scheduling objective is computationally challenging due to the dependencies among agent steps and the contention among concurrent requests. 
+This global scheduling problem is computationally challenging due to dependencies among agent steps and contention among concurrent requests. 
 Astraea~\citep{Astraea} formalizes a similar multi-stage agent scheduling problem and has proved it to be NP-hard. 
-Therefore, practical online agent serving systems typically rely on efficient   euristic policies to approximate the optimal schedule.
+Therefore, practical online agent serving systems typically rely on efficient   heuristic policies to approximate the optimal schedule.

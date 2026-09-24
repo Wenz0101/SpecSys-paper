@@ -165,11 +165,17 @@
   year={2025}
 }
 
-@article{Autellix,
-  title={Autellix: An efficient serving engine for llm agents as general programs},
-  author={Luo, Michael and Shi, Xiaoxiang and Cai, Colin and Zhang, Tianjun and Wong, Justin and Wang, Yichuan and Wang, Chi and Huang, Yanping and Chen, Zhifeng and Gonzalez, Joseph E and others},
-  journal={arXiv preprint arXiv:2502.13965},
-  year={2025}
+@inproceedings {Agentix,
+author = {Michael Luo and Xiaoxiang Shi and Colin Cai and Tianjun Zhang and Justin Wong and Yichuan Wang and Chi Wang and Yanping Huang and Zhifeng Chen and Joseph E. Gonzalez and Ion Stoica},
+title = {Agentix: An Efficient Serving Engine for {LLM} Agents as General Programs},
+booktitle = {23rd USENIX Symposium on Networked Systems Design and Implementation (NSDI 26)},
+year = {2026},
+isbn = {978-1-939133-54-0},
+address = {Renton, WA},
+pages = {2443--2459},
+url = {https://www.usenix.org/conference/nsdi26/presentation/luo},
+publisher = {USENIX Association},
+month = may
 }
 
 @article{Astraea,
@@ -238,4 +244,215 @@
   pages={118--132},
   year={2024},
   organization={IEEE}
+}
+
+@InProceedings{BanditSpec,
+  title = 	 {{B}andit{S}pec: Adaptive Speculative Decoding via Bandit Algorithms},
+  author =       {Hou, Yunlong and Zhang, Fengzhuo and Du, Cunxiao and Zhang, Xuan and Pan, Jiachun and Pang, Tianyu and Du, Chao and Tan, Vincent and Yang, Zhuoran},
+  booktitle = 	 {Proceedings of the 42nd International Conference on Machine Learning},
+  pages = 	 {24045--24079},
+  year = 	 {2025},
+  editor = 	 {Singh, Aarti and Fazel, Maryam and Hsu, Daniel and Lacoste-Julien, Simon and Berkenkamp, Felix and Maharaj, Tegan and Wagstaff, Kiri and Zhu, Jerry},
+  volume = 	 {267},
+  series = 	 {Proceedings of Machine Learning Research},
+  month = 	 {13--19 Jul},
+  publisher =    {PMLR},
+  pdf = 	 {https://raw.githubusercontent.com/mlresearch/v267/main/assets/hou25h/hou25h.pdf},
+  url = 	 {https://proceedings.mlr.press/v267/hou25h.html},
+  abstract = 	 {Speculative decoding has emerged as a popular method to accelerate the inference of Large Language Models (LLMs) while retaining their superior text generation performance. Previous methods either adopt a fixed speculative decoding configuration regardless of the prefix tokens, or train draft models in an offline or online manner to align them with the context. This paper proposes a training-free online learning framework to adaptively choose the configuration of the hyperparameters for speculative decoding as text is being generated. We first formulate this hyperparameter selection problem as a Multi-Armed Bandit problem and provide a general speculative decoding framework BanditSpec. Furthermore, two bandit-based hyperparameter selection algorithms, UCBSpec and EXP3Spec, are designed and analyzed in terms of a novel quantity, the stopping time regret. We upper bound this regret under both stochastic and adversarial reward settings. By deriving an information-theoretic impossibility result, it is shown that the regret performance of UCBSpec is optimal up to universal constants. Finally, extensive empirical experiments with LLaMA3 and Qwen2 demonstrate that our algorithms are effective compared to existing methods, and the throughput is close to the oracle best hyperparameter in simulated real-life LLM serving scenarios with diverse input prompts.}
+}
+
+@inproceedings{AdaSpec, series={SoCC ’25},
+   title={AdaSpec: Adaptive Speculative Decoding for Fast, SLO-Aware Large Language Model Serving},
+   url={http://dx.doi.org/10.1145/3772052.3772239},
+   DOI={10.1145/3772052.3772239},
+   booktitle={Proceedings of the 2025 ACM Symposium on Cloud Computing},
+   publisher={ACM},
+   author={Huang, Kaiyu and Wu, Hao and Shi, Zhubo and Zou, Han and Yu, Minchen and Shi, Qingjiang},
+   year={2025},
+   month=Nov, pages={361–374},
+   collection={SoCC ’25} }
+
+@inproceedings{Learning_To_Draft,
+title={Learning To Draft: Adaptive Speculative Decoding with Reinforcement Learning},
+author={Jiebin Zhang and Zhenghan Yu and Liang Wang and Nan Yang and Eugene J. Yu and Zheng Li and Yifan Song and Dawei Zhu and Xingxing Zhang and Furu Wei and Sujian Li},
+booktitle={The Fourteenth International Conference on Learning Representations},
+year={2026},
+url={https://openreview.net/forum?id=IK9cbzzXLt}
+}
+
+@misc{AdaServe,
+      title={AdaServe: Accelerating Multi-SLO LLM Serving with SLO-Customized Speculative Decoding}, 
+      author={Zikun Li and Zhuofu Chen and Remi Delacourt and Gabriele Oliaro and Zeyu Wang and Qinghan Chen and Shuhuai Lin and April Yang and Zhihao Zhang and Zhuoming Chen and Sean Lai and Xinhao Cheng and Xupeng Miao and Zhihao Jia},
+      year={2025},
+      eprint={2501.12162},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2501.12162}, 
+}
+
+@misc{D-cut,
+      title={D-cut: Adaptive Verification Depth Pruning for Batched Speculative Decoding}, 
+      author={Tianyu Liu and Yuhao Shen and Rui Cen and Junhan Shi and Jiebin Zhang and Guangshuo Qin and Hong Liu and Song Liu and Guanghua Yu and Jianchen Zhu},
+      year={2026},
+      eprint={2607.14647},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2607.14647}, 
+}
+
+@misc{ECHO,
+      title={ECHO: Elastic Speculative Decoding with Sparse Gating for High-Concurrency Scenarios}, 
+      author={Xinyi Hu and Yuhao Shen and Baolin Zhang and Hengxin Zhang and Jun Dai and Shuang Ge and Lei Chen and Yue Li and Mingcheng Wan},
+      year={2026},
+      eprint={2604.09603},
+      archivePrefix={arXiv},
+      primaryClass={cs.DC},
+      url={https://arxiv.org/abs/2604.09603}, 
+}
+
+@misc{DSpark,
+      title={DSpark: Confidence-Scheduled Speculative Decoding with Semi-Autoregressive Generation}, 
+      author={Xin Cheng and Xingkai Yu and Chenze Shao and Jiashi Li and Yunfan Xiong and Yi Qian and Jiaqi Zhu and Shirong Ma and Xiaokang Zhang and Jiasheng Ye and Qinyu Chen and Chengqi Deng and Jiping Yu and Damai Dai and Zhengyan Zhang and Yixuan Wei and Yixuan Tan and Wenkai Yang and Runxin Xu and Yu Wu and Zhean Xu and Xuanyu Wang and Muyang Chen and Rui Tian and Xiao Bi and Zhewen Hao and Shaoyuan Chen and Huanqi Cao and Wentao Zhang and Anyi Xu and Huishuai Zhang and Dongyan Zhao and Wenfeng Liang},
+      year={2026},
+      eprint={2607.05147},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2607.05147}, 
+}
+
+@misc{vLLM,
+      title={Efficient Memory Management for Large Language Model Serving with PagedAttention}, 
+      author={Woosuk Kwon and Zhuohan Li and Siyuan Zhuang and Ying Sheng and Lianmin Zheng and Cody Hao Yu and Joseph E. Gonzalez and Hao Zhang and Ion Stoica},
+      year={2023},
+      eprint={2309.06180},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2309.06180}, 
+}
+
+@inproceedings{SGLang,
+ author = {Zheng, Lianmin and Yin, Liangsheng and Xie, Zhiqiang and Sun, Chuyue and Huang, Jeff and Yu, Cody Hao and Cao, Shiyi and Kozyrakis, Christos and Stoica, Ion and Gonzalez, Joseph E. and Barrett, Clark and Sheng, Ying},
+ booktitle = {Advances in Neural Information Processing Systems},
+ doi = {10.52202/079017-2000},
+ editor = {A. Globerson and L. Mackey and D. Belgrave and A. Fan and U. Paquet and J. Tomczak and C. Zhang},
+ pages = {62557--62583},
+ publisher = {Curran Associates, Inc.},
+ title = {SGLang: Efficient Execution of Structured Language Model Programs},
+ url = {https://proceedings.neurips.cc/paper_files/paper/2024/file/724be4472168f31ba1c9ac630f15dec8-Paper-Conference.pdf},
+ volume = {37},
+ year = {2024}
+}
+
+
+@inproceedings{SpecReason,
+ author = {Pan, Rui and Dai, Yinwei and Zhang, Zhihao and Oliaro, Gabriele and Jia, Zhihao and Netravali, Ravi},
+ booktitle = {Advances in Neural Information Processing Systems},
+ doi = {10.52202/085713-0428},
+ editor = {D. Belgrave and C. Zhang and H. Lin and R. Pascanu and P. Koniusz and M. Ghassemi and N. Chen},
+ pages = {12730--12749},
+ publisher = {Curran Associates, Inc.},
+ title = {SpecReason: Fast and Accurate Inference-Time Compute via Speculative Reasoning},
+ url = {https://proceedings.neurips.cc/paper_files/paper/2025/file/12c45a68e8433b21b91cd47731387fa4-Paper-Conference.pdf},
+ volume = {38, Main Conference},
+ year = {2025}
+}
+
+@misc{Interactive_Speculative_Planning,
+      title={Interactive Speculative Planning: Enhance Agent Efficiency through Co-design of System and User Interface}, 
+      author={Wenyue Hua and Mengting Wan and Shashank Vadrevu and Ryan Nadel and Yongfeng Zhang and Chi Wang},
+      year={2024},
+      eprint={2410.00079},
+      archivePrefix={arXiv},
+      primaryClass={cs.MA},
+      url={https://arxiv.org/abs/2410.00079}, 
+}
+
+@inproceedings{
+Dynamic_Speculative_Agent_Planning,
+title={Dynamic Speculative Agent Planning},
+author={Yilin Guan and Qingfeng Lan and Fei Sun and Dujian Ding and Devang Acharya and Chi Wang and William Yang Wang and Wenyue Hua},
+booktitle={The Fourteenth International Conference on Learning Representations},
+year={2026},
+url={https://openreview.net/forum?id=YZ5k2dVj6O}
+}
+
+@misc{Speculative_Actions,
+      title={Speculative Actions: A Lossless Framework for Faster Agentic Systems}, 
+      author={Naimeng Ye and Arnav Ahuja and Georgios Liargkovas and Yunan Lu and Kostis Kaffes and Tianyi Peng},
+      year={2026},
+      eprint={2510.04371},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2510.04371}, 
+}
+
+@inproceedings{DREAM-R,
+title={{DREAM}-R: Multimodal Speculative Reasoning with {RL}-Based Refined Drafting, Precise Verification, and Fully Parallel Execution},
+author={Yunhai Hu and Zining Liu and Xiangyang Yin and Tianhua Xia and BO BAO and Eric Sather and Vithursan Thangarasa and Sai Qian Zhang},
+booktitle={The First Workshop on Efficient Spatial Reasoning},
+year={2026},
+url={https://openreview.net/forum?id=CRgWv0kWjF}
+}
+
+
+@inproceedings {FastServe,
+author = {Bingyang Wu and Yinmin Zhong and Zili Zhang and Shengyu Liu and Fangyue Liu and Yuanhang Sun and Gang Huang and Xuanzhe Liu and Xin Jin},
+title = {{FastServe}: {Iteration-Level} Preemptive Scheduling for Large Language Model Inference},
+booktitle = {23rd USENIX Symposium on Networked Systems Design and Implementation (NSDI 26)},
+year = {2026},
+isbn = {978-1-939133-54-0},
+address = {Renton, WA},
+pages = {57--74},
+url = {https://www.usenix.org/conference/nsdi26/presentation/wu-bingyang},
+publisher = {USENIX Association},
+month = may
+}
+
+@inproceedings{Past-Future, series={ASPLOS ’25},
+   title={Past-Future Scheduler for LLM Serving under SLA Guarantees},
+   url={http://dx.doi.org/10.1145/3676641.3716011},
+   DOI={10.1145/3676641.3716011},
+   booktitle={Proceedings of the 30th ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 2},
+   publisher={ACM},
+   author={Gong, Ruihao and Bai, Shihao and Wu, Siyu and Fan, Yunqian and Wang, Zaijun and Li, Xiuhong and Yang, Hailong and Liu, Xianglong},
+   year={2025},
+   month=Mar, pages={798–813},
+   collection={ASPLOS ’25} 
+}
+
+@inproceedings {JITServe,
+author = {Wei Zhang and Zhiyu Wu and Yi Mu and Rui Ning and Banruo Liu and Nikhil Sarda and Myungjin Lee and Fan Lai},
+title = {{JITServe}: {SLO-aware} {LLM} Serving with Imprecise Request Information},
+booktitle = {23rd USENIX Symposium on Networked Systems Design and Implementation (NSDI 26)},
+year = {2026},
+isbn = {978-1-939133-54-0},
+address = {Renton, WA},
+pages = {825--848},
+url = {https://www.usenix.org/conference/nsdi26/presentation/zhang-wei},
+publisher = {USENIX Association},
+month = may
+}
+
+@inproceedings {Parrot,
+author = {Chaofan Lin and Zhenhua Han and Chengruidong Zhang and Yuqing Yang and Fan Yang and Chen Chen and Lili Qiu},
+title = {Parrot: Efficient Serving of {LLM-based} Applications with Semantic Variable},
+booktitle = {18th USENIX Symposium on Operating Systems Design and Implementation (OSDI 24)},
+year = {2024},
+isbn = {978-1-939133-40-3},
+address = {Santa Clara, CA},
+pages = {929--945},
+url = {https://www.usenix.org/conference/osdi24/presentation/lin-chaofan},
+publisher = {USENIX Association},
+month = jul
+}
+
+@misc{Helium,
+      title={Efficient LLM Serving for Agentic Workflows: A Data Systems Perspective}, 
+      author={Noppanat Wadlom and Junyi Shen and Yao Lu},
+      year={2026},
+      eprint={2603.16104},
+      archivePrefix={arXiv},
+      primaryClass={cs.MA},
+      url={https://arxiv.org/abs/2603.16104}, 
 }
