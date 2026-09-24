@@ -780,11 +780,14 @@ Since ThunderAgent performs periodic scheduling at a configurable interval, this
 
 This section summarizes the major hyperparameters and software configurations used in our experiments. Unless otherwise specified, all compared methods use the same workload replay settings, model-generation parameters, and serving configurations under the same hardware setting.
 
-\paragraph{Agent Trace Collection and Replay.}
-We collect 1,000 execution trajectories from different agent datasets and agent tasks (Details in~\autoref{request-and-resource-analysis}).  Each trajectory records the input and output of every LLM invocation, together with the corresponding timestamps and complete request and response contents. We replay these collected trajectories during evaluation to emulate the execution behavior of real agents without repeatedly invoking the original agent environments. For each trace-driven experiment, we replay 4,096 agent tasks using the collected trajectories. The timestamps from the online inference trace are used to determine the task arrival times, with the beginning of the selected trace segment treated as the replay start time. To maintain workload diversity, we cyclically select trajectories from different task categories, ensuring that different types of agent tasks are interleaved during replay while preserving the temporal characteristics of the original inference trace.
+\paragraph{Agent Trace Collection.}
+We collect 1,000 execution trajectories from different agent datasets and agent tasks (details in~\autoref{request-and-resource-analysis}). Each trajectory records the input and output of every LLM invocation, together with the corresponding timestamps and complete request and response contents. We split the collected trajectories into training and test sets at a ratio of 5:1. For evaluating remaining-step prediction accuracy, only trajectories in the training set are used to construct the historical profiles, while prediction is performed exclusively on trajectories from the test set. We follow the same separation in the end-to-end experiments, ensuring that no test trajectory is used for profiling and thus avoiding data leakage.
+
+\paragraph{Agent Trace Replay.}
+We replay these collected trajectories during evaluation to emulate the execution behavior of real agents without repeatedly invoking the original agent environments. For each trace-driven experiment, we replay 4,096 agent tasks by cyclically reusing trajectories from the test set. The timestamps from the online inference trace are used to determine the task arrival times, with the beginning of the selected trace segment treated as the replay start time. To maintain workload diversity, trajectories from different task categories are interleaved during replay while preserving the temporal characteristics of the original inference trace. For each experimental configuration, all compared methods use the same trajectory sequence and task arrival timestamps. Any randomized components in workload construction use a fixed random seed to avoid performance differences caused by workload sampling.
 
 \paragraph{Inference Engine Configuration.}
-The GPU configuration and tensor-parallelism (TP) degree follow the model--hardware configurations described in the main experiments. For all inference engines, we set the GPU memory utilization to 0.85 and the maximum model context length to 20,480 tokens.
+The GPU configuration and tensor-parallelism (TP) degree follow the model--hardware configurations described in the main experiments. For all inference engines, we set the GPU memory utilization to 0.85, the maximum model context length to 20,480 tokens, and \texttt{max\_num\_seqs} to 256. Prefix caching and chunked prefill are enabled.
 
 \paragraph{LLM Generation Configuration.}
 All LLM requests use a temperature of 0, corresponding to greedy decoding, and the maximum number of generated tokens is set to 1,024. For Qwen models, we additionally disable the built-in thinking mode by setting
@@ -794,54 +797,50 @@ This setting ensures that the evaluated requests follow the same non-thinking ge
 \paragraph{ThunderAgent Configuration.}
 For ThunderAgent, we set both \texttt{metrics-interval} and \texttt{scheduler-interval} to 5.0 seconds. Accordingly, ThunderAgent periodically collects serving statistics and performs scheduling decisions at 5-second intervals.
 
-\paragraph{Speculative Decoding Configuration.}
-We use EAGLE-3 as the speculative decoding method. Both speculative decoding and standard decoding use a temperature of 0 to ensure deterministic greedy decoding. Unless otherwise specified, the draft length is fixed to 3.
-
-\paragraph{SD Switching Threshold.}
-The SD Switching thresholds for individual configurations are reported in the profiling experiments in~\autoref{sd-speedup}.
+\paragraph{Speculative Decoding and Switching Configuration.}
+We use EAGLE-3 as the speculative decoding method, with a default draft length of 3 unless otherwise specified. For vLLM Dynamic SD and SGLang Adaptive SD, the switching threshold \(T\) is determined separately for each model--hardware configuration from the profiling results in~\autoref{sd-speedup}. SD is enabled with a draft length of 3 when the running batch size is at or below \(T\), and disabled by setting the draft length to 0 when the batch size exceeds \(T\):
+\[
+[1,T]\rightarrow 3,\qquad [T+1,256]\rightarrow 0.
+\]
+Here, \(T\) denotes the profiled SD break-even threshold. SpecSys uses the same profiled threshold to determine when to switch directly between its native SD and non-SD execution paths. The thresholds for individual configurations are reported in~\autoref{sd-speedup}.
 
 \paragraph{Software Environment.}
 \autoref{tab:software-versions} lists the major software and system versions used in our experiments. Python versions used by the major agent and inference frameworks are summarized separately in~\autoref{tab:python-versions}.
 
 \begin{table}[H]
     \centering
+    \caption{Software and system versions used in the experiments.}
+    \label{tab:software-versions}
+    \begin{tabular}{cc}
+        \toprule
+        \textbf{Component} & \textbf{Version} \\
+        \midrule
+        NVIDIA Driver & 595.91.07 \\
+        CUDA & 13.2 \\
+        ThunderAgent & 0.1.0 \\
+        qwen-agent & 0.0.34 \\
+        AgentFlow & 0.1.0 \\
+        SpecSys vLLM base & v0.17.1 \\
+        SpecSys SGLang base & v0.5.14 \\
+        vLLM Dynamic SD & v0.24.0 \\
+        SGLang Adaptive SD & v0.5.14 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
-    \begin{minipage}[t]{0.48\linewidth}
-        \centering
-        \caption{Software and system versions used in the experiments.}
-        \label{tab:software-versions}
-        \begin{tabular}{cc}
-            \toprule
-            \textbf{Component} & \textbf{Version} \\
-            \midrule
-            NVIDIA Driver & 595.91.07 \\
-            CUDA & 13.2 \\
-            ThunderAgent & 0.1.0 \\
-            qwen-agent & 0.0.34 \\
-            AgentFlow & 0.1.0 \\
-            SpecSys vLLM base & v0.17.1 \\
-            SpecSys SGLang base & v0.5.14 \\
-            vLLM Dynamic SD & v0.24.0 \\
-            SGLang Adaptive SD & v0.5.14 \\
-            \bottomrule
-        \end{tabular}
-    \end{minipage}
-    \hfill
-    \begin{minipage}[t]{0.48\linewidth}
-        \centering
-        \caption{Python versions used by different agent and inference frameworks.}
-        \label{tab:python-versions}
-        \begin{tabular}{cc}
-            \toprule
-            \textbf{Framework} & \textbf{Python Version} \\
-            \midrule
-            qwen-agent & 3.10 \\
-            ThunderAgent & 3.10 \\
-            AgentFlow & 3.11 \\
-            vLLM & 3.12 \\
-            SGLang & 3.12 \\
-            \bottomrule
-        \end{tabular}
-    \end{minipage}
-
+\begin{table}[H]
+    \centering
+    \caption{Python versions used by different agent and inference frameworks.}
+    \label{tab:python-versions}
+    \begin{tabular}{cc}
+        \toprule
+        \textbf{Framework} & \textbf{Python Version} \\
+        \midrule
+        qwen-agent & 3.10 \\
+        ThunderAgent & 3.10 \\
+        AgentFlow & 3.11 \\
+        vLLM & 3.12 \\
+        SGLang & 3.12 \\
+        \bottomrule
+    \end{tabular}
 \end{table}

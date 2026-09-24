@@ -1,15 +1,22 @@
 \section{Method}
 % SD 状态切换示意图
 \begin{figure}[t]
-    \vspace{-30pt}
+    \vspace{-20pt}
     \begin{center}
     \includegraphics[width=1.0\linewidth]{figures/method-overview.pdf}
     \end{center}
+    \vspace{-10pt}
+    % \caption{
+    %     Illustration of iteration-level SD switching in \sysname.
+    %     At iteration $i$, a heavily loaded batch triggers a \emph{Switch to Non-SD} request, which is forwarded by the scheduler and takes effect at iteration $i+1$.
+    %     Similarly, a \emph{Switch to SD} request issued under light load at iteration $i+2$ takes effect at iteration $i+3$.
+    %     All requests within an iteration follow the same execution mode.
+    % }
     \caption{
-        Illustration of iteration-level SD switching in \sysname.
-        At iteration $i$, a heavily loaded batch triggers a \emph{Switch to Non-SD} request, which is forwarded by the scheduler and takes effect at iteration $i+1$.
-        Similarly, a \emph{Switch to SD} request issued under light load at iteration $i+2$ takes effect at iteration $i+3$.
-        All requests within an iteration follow the same execution mode.
+    Illustration of iteration-level SD switching in \sysname.
+    At iteration $j$, 64 incoming requests drive the system into a heavily loaded state, causing the external SD Controller to issue a switch-to-Non-SD request.
+    The internal Scheduler applies the request at iteration $j+1$, and inference proceeds along the native Non-SD path for the next 100 iterations as the running batch size gradually decreases.
+    After the system becomes lightly loaded, the SD Controller issues a switch-to-SD request, which takes effect at iteration $j+101$, after which inference continues along the native SD path.
     }
     \label{fig:sd_switch}
 \end{figure}
@@ -18,45 +25,124 @@
 \subsection{Externally Controllable SD Switching}
 \label{sec:4.1}
 % 总起，分成三部分：外部接口，scheduler，worker
-To support customizable SD selection policies at the upper layer, \sysname extends the underlying inference engine with an externally controllable runtime SD switch  \xiaoxi{emphasize the existing dynamic SD pre-sets a static switching condition, and more importantly, their default path is fixed to the SD Path, resulting a xxxx overhead.}.
-As shown in~\autoref{fig:sd_switch}, this design consists of three components: an external control interface, an iteration-level state transition mechanism in the scheduler, and mode-specific execution paths in the worker \xiaoxi{Please change the description of Figure~\ref{fig:sd_switch} to the phenomenon/benefit of switching.}. Throughout this paper, we use {\em (execution) mode} to denote the scheduler-visible runtime state indicating whether SD is enabled, and {\em path} to denote the corresponding worker-side implementation branch used to realize that mode. Each mode maps to a separate native execution path with its own execution flow and CUDA Graph, so switching modes in \sysname also switches the underlying execution path.
+% To support customizable SD selection policies at the upper layer, \sysname extends the underlying inference engine with an externally controllable runtime SD switch  \xiaoxi{emphasize the existing dynamic SD pre-sets a static switching condition, and more importantly, their default path is fixed to the SD Path, resulting a xxxx overhead.}.
 
-\xiaoxi{Move Table~\ref{tab:token_consistency} and Figure~\ref{fig:nonsd_overhead} here in a compact way.}
+
+Existing dynamic SD approaches follow predefined switching logic and remain confined to the SD execution path, introducing substantial residual overhead during pseudo-Non-SD generation, as demonstrated in~\autoref{tab:token_consistency_form} and~\autoref{fig:nonsd_overhead_b32}.
+Therefore, \sysname exposes an externally controllable runtime interface that enables arbitrary switching logic and directly switches between native SD and Non-SD execution paths, avoiding the unnecessary overhead of Non-SD generation.
+
+As shown in~\autoref{fig:sd_switch}, this design consists of three components: an external control interface, an iteration-level state transition in the scheduler, and path-specific execution paths in the worker.
+% \xiaoxi{Please change the description of Figure~\ref{fig:sd_switch} to the phenomenon/benefit of switching.} 
+
+% \xiaoxi{Move Table~\ref{tab:token_consistency} and Figure~\ref{fig:nonsd_overhead} here in a compact way.}
+
+
+% 描述 existing dynamic SD 方法的问题：没有彻底切换，存在overhead
+\begin{figure}[b]
+    \vspace{-10pt}
+    \centering
+    % =========================
+    % Left: Table
+    % =========================
+    \begin{minipage}[t]{0.73\linewidth}
+        \centering
+        \captionof{table}{Execution path comparison across adaptive SD approaches.}
+        \label{tab:token_consistency_form}
+
+        \resizebox{\linewidth}{!}{
+        \begin{tabular}{ccc}
+            \toprule
+            \textbf{Approach} &
+            \makecell{\textbf{Non-SD Path}} &
+            \makecell{\textbf{SD Path}} \\
+            \midrule
+        
+            \makecell[l]{vLLM Dynamic SD ($\text{draft\_len}=0$)}
+            & $\times$ & $\checkmark$ \\
+        
+            \makecell[l]{SGLang Adaptive SD ($\text{draft\_len}=0$)}
+            & $\times$ & $\checkmark$ \\
+        
+            \midrule
+        
+            SpecSys-NonSD
+            & $\checkmark$ & $\times$ \\
+        
+            SpecSys-SD
+            & $\times$ & $\checkmark$ \\
+        
+            \bottomrule
+        \end{tabular}
+        }
+    \end{minipage}
+    \hfill
+    % =========================
+    % Right: Figure
+    % =========================
+    \begin{minipage}[t]{0.26\linewidth}
+        \vspace{0pt}
+        \centering
+        \includegraphics[width=\linewidth]{figures/nonsd_overhead_bs32.pdf}
+        \setlength{\abovecaptionskip}{-15pt}
+        \captionof{figure}{Non-SD Path Overhead of Adaptive SD}
+        \label{fig:nonsd_overhead_b32}
+    \end{minipage}
+
+\end{figure}
+
 
 % 外部接口
 \textbf{External Control Interface for Better Extendibility.}
-\sysname extends the inference engine with a lightweight control interface to receive SD switching requests and forward them to the scheduler to update the desired execution mode.
-This design decouples the external scheduling policy from the internal execution logic of the inference engine. \xiaoxi{still need to highlight the fundamental benefit, e.g., improved deployment flexibility or extendibility}
+% \sysname extends the inference engine with a lightweight control interface to receive SD switching requests and forward them to the scheduler to update the desired execution mode.
+% This design decouples the external scheduling policy from the internal execution logic of the inference engine. \xiaoxi{still need to highlight the fundamental benefit, e.g., improved deployment flexibility or extendibility}
+\sysname extends the inference engine with a lightweight control interface that receives SD switching requests and forwards them to the scheduler to update the desired execution mode.
+This design decouples external control policies from internal execution logic, allowing switching policies to be modified or replaced independently of the inference engine.
+As a result, \sysname can be flexibly integrated with different deployment environments and external scheduling strategies.
 
 % scheduler
 \textbf{Iteration-Level State Transition.}
-To ensure execution consistency, \sysname performs SD switching only at inference-iteration boundaries \xiaoxi{A better way to highlight our method that enables iteration-level switching should be relating this iteration-level switching to the purpose of reducing JCT in addition to execution consistency}. 
-The scheduler maintains two execution states: the mode used by the current iteration and the expected mode for the next iteration. 
-An external switching request only updates the expected state and does not affect an iteration that is already being executed. 
-At the beginning of the next iteration, the scheduler commits the expected state as the current execution mode and propagates it to the worker through \texttt{SchedulerOutput}. 
+% To ensure execution consistency, \sysname performs SD switching only at inference-iteration boundaries \xiaoxi{A better way to highlight our method that enables iteration-level switching should be relating this iteration-level switching to the purpose of reducing JCT in addition to execution consistency}. 
+To eliminate the lag between external control and internal execution introduced by this decoupled design, \sysname adopts iteration-level switching, allowing switching requests to take effect at the next inference iteration.
+Specifically, the scheduler maintains a current mode and an expected mode. External requests update only the expected mode, which is applied to the worker at the next iteration boundary.
 
 % worker
 \textbf{Path-Specific Worker Execution.}
-As Non-SD and SD follow different execution flows and kernel paths (in~\autoref{sec:3.1}), \sysname preserves separate execution branches for the two modes. 
-During engine initialization, CUDA Graphs for both modes are prepared in advance. \xiaoxi{Should point out the importance or challenging issue related to CUDA graphs in the switching.}
-At runtime, the worker selects the corresponding execution branch and CUDA Graph based on the mode specified in \texttt{SchedulerOutput}. 
-Within each iteration, all requests in the batch follow the same execution mode and therefore share the same execution path, ensuring consistent batch execution while enabling low-overhead iteration-level switching.
+% As Non-SD and SD follow different execution paths (in~\autoref{sec:3.1}), \sysname preserves separate execution branches for the two paths. 
+% During engine initialization, CUDA Graphs for both modes are prepared in advance. \xiaoxi{Should point out the importance or challenging issue related to CUDA graphs in the switching.}
+% At runtime, the worker selects the corresponding execution branch and CUDA Graph based on the mode specified in \texttt{SchedulerOutput}. 
+% Within each iteration, all requests in the batch follow the same execution mode and therefore share the same execution path, ensuring consistent batch execution while enabling low-overhead iteration-level switching.
+Existing dynamic SD approaches focus on the SD path and provide limited optimization for native Non-SD execution, especially dedicated CUDA Graphs. Extending switching to two native paths therefore requires optimizing both paths independently. 
+\sysname prepares CUDA Graphs for both paths during initialization, and the worker uses the pre-captured CUDA Graph corresponding to the selected path in each iteration.
+
+
 
 % 2.Agent 剩余 step 数预测
 \subsection{Agent Remaining-Step Prediction}
 \label{sec:4.2}
 % 介绍预测方法的动机
-\xiaoxirev{To realize an efficient scheduling mechanism that exploits unique characteristics of agent workloads, we conduct a profiling experiment
+% \xiaoxirev{To realize an efficient scheduling mechanism that exploits unique characteristics of agent workloads, we conduct a profiling experiment
+% %Based on our profiling results 
+% (\autoref{step-distribution}), which reveals two insights}: {\em (i) Agent execution patterns vary across workflows and workloads. (ii) The prompts of LLM inference steps provide useful information of the current execution state that can guide scheduling decisions}. 
+% First, we categorize today's agent workflows into three types:
+
+% \xiaoxi{cite references below, for the workflow terminologies that appear in the first time}
+% \begin{itemize}[leftmargin=10pt]
+%     \item \textbf{Type A} represents planning-based workflows, such as Plan-and-Solve, where the planned step count can be directly extracted from the prompt, making prediction straightforward.
+%     \item \textbf{Type B} represents multi-step iterative workflows, such as AgentFlow, where tasks terminate at specific step boundaries and exhibit a multimodal step distribution, making the completion step easier to estimate using the mode of the historical distribution.
+%     \item \textbf{Type C} represents step-by-step workflows, such as ReAct, where tasks may terminate at almost any step, making prediction more difficult and requiring additional execution-state information.
+% \end{itemize}
+To realize an efficient scheduling mechanism that exploits unique characteristics of agent workloads, we conduct a profiling experiment
 %Based on our profiling results 
-(\autoref{step-distribution}), which reveals two insights}: {\em (i) Agent execution patterns vary across workflows and workloads. (ii) The prompts of LLM inference steps provide useful information of the current execution state that can guide scheduling decisions}. 
+(\autoref{step-distribution}), which reveals two insights: {\em (i) Agent execution patterns vary across workflows and workloads. (ii) The prompts of LLM inference steps provide useful information of the current execution state that can guide scheduling decisions}. 
 First, we categorize today's agent workflows into three types:
 
-\xiaoxi{cite references below, for the workflow terminologies that appear in the first time}
-\begin{itemize}
+\begin{itemize}[leftmargin=10pt]\label{type-describe}
     \item \textbf{Type A} represents planning-based workflows, such as Plan-and-Solve, where the planned step count can be directly extracted from the prompt, making prediction straightforward.
     \item \textbf{Type B} represents multi-step iterative workflows, such as AgentFlow, where tasks terminate at specific step boundaries and exhibit a multimodal step distribution, making the completion step easier to estimate using the mode of the historical distribution.
     \item \textbf{Type C} represents step-by-step workflows, such as ReAct, where tasks may terminate at almost any step, making prediction more difficult and requiring additional execution-state information.
 \end{itemize}
+
+
 
 % 解析请求附带的信息，提取状态关键词，然后分类。
 \textbf{Request-Level Information Extraction.}
@@ -66,13 +152,20 @@ Examples of this information extraction process are provided in~\autoref{prompt_
 
 % 分类保存历史记录
 \textbf{Offline History Profiling.}
+% \sysname groups completed agent requests by workflow and workload and records the distribution of total execution steps $T$. 
+% The distributions are further conditioned on the extracted execution state and, for Type C workflows, the transition between the previous and current states. \xiaoxi{mention the profiling cost is not large.}
 \sysname groups completed agent requests by workflow and workload and records the distribution of total execution steps $T$. 
-The distributions are further conditioned on the extracted execution state and, for Type C workflows, the transition between the previous and current states. \xiaoxi{mention the profiling cost is not large.}
+The distributions are further conditioned on the extracted execution state and, for Type C workflows, the transition between the previous and current states.
+The profiling cost is negligible, as \sysname only maintains lightweight statistics over completed requests and performs no additional computation on the online serving path.
 
-\xiaoxi{Please explain the reason/intuition of each specific way/parameter used in the following estimation for different workflow types. Make them tightly related to your observations.}
+% \xiaoxi{Please explain the reason/intuition of each specific way/parameter used in the following estimation for different workflow types. Make them tightly related to your observations.}
 
 % 剩余 step 数估计
 \textbf{Remaining-Step Estimation.}
+% todo: 解释一下为什么要用这样的方法
+\sysname adopts different estimation strategies based on the characteristics of each workflow type as described in~\autoref{type-describe}.
+Type A directly leverages the explicit plan, Type B uses the most frequent historical completion step to capture recurring termination patterns, Type C further incorporates state transitions and uses the median for more robust estimation.
+
 % Type A，解析 plan 直接得到 P ，然后 P-k 得到剩余 step
 For \textbf{Type A}, let $P$ denote the planned step count extracted from the prompt. 
 Given the current step $k$, the remaining steps are directly computed as

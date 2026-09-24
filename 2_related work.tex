@@ -24,7 +24,7 @@ In contrast, SpecSys decides whether to enable SD, switches directly between nat
 
 
 % 介绍 agent 与 SD 结合的论文，说明我们跟他们的区别。
-Beyond optimizing SD within token-level generation, recent work extends speculative decoding from token-level generation to semantic-level reasoning~\citep{SpecReason,DREAM-R}, and further applies this paradigm to agent planning, action, or tool execution~\citep{Interactive_Speculative_Planning,Dynamic_Speculative_Agent_Planning,Speculative_Actions}.
+Beyond conventional token-level SD, recent work extends speculation to semantic-level reasoning~\citep{SpecReason,DREAM-R}, and further to agent planning, action, or tool execution~\citep{Interactive_Speculative_Planning,Dynamic_Speculative_Agent_Planning,Speculative_Actions}.
 In contrast, these approaches primarily redesign the upper-level agent workflow, whereas SpecSys applies speculative decoding to the LLM requests within each agent job to accelerate inference without altering the agent structure, making it orthogonal to these approaches.
 % 简单阐述我们的方法理论上可以拓展到目前新兴的 speculative agent workflows
 In principle, our remaining-step prediction method could also be extended to such emerging speculative agent workflows by simply scaling the predicted number of remaining steps according to the speculative acceptance rate.

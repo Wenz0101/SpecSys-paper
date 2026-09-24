@@ -28,7 +28,7 @@ In modern LLM inference systems such as vLLM~\citep{vLLM} and SGLang~\citep{SGLa
 \]
 % 介绍 Non-SD 和 SD 两种模式的区别
 Different generation mechanisms follow different execution paths within each inference iteration:
-\begin{itemize}
+\begin{itemize}[leftmargin=10pt]
     % Non-SD
     \item \textbf{Non-SD Execution Path}.
     \texttt{Execute\_Model} performs a standard LLM forward pass with a \textbf{decode-oriented execution pattern}, producing next-token logits for each LLM request. 
@@ -43,6 +43,9 @@ Different generation mechanisms follow different execution paths within each inf
 % Consequently, non-SD and SD differ in both execution flow and kernel usage. Unifying them into a single execution path would require extra alignment or force one path to use a suboptimal kernel, introducing unnecessary overhead. \xiaoxi{Add one sentence to confirm existing vllm/sglang dynamic SD indeed incur such ``extra alignment'' overhead and cite Figure~\ref{fig:nonsd_overhead}.}
 Consequently, non-SD and SD differ in both execution path. Existing adaptive SD approaches such as vLLM's Dynamic SD and SGLang's Adaptive SD unify these two paths to support runtime adaptation. However, such unification requires additional alignment between the two execution modes or forces one mode to operate with a suboptimal computation kernel, thereby introducing unnecessary overhead (\autoref{dynamic-sd-comparison}).
 
+\xiaoxirev{
+Throughout this paper, we use {\em (execution) mode} to denote the scheduler-visible runtime state indicating whether SD is enabled, and {\em path} to denote the corresponding worker-side implementation branch used to realize that mode. Each mode maps to a separate native execution path with its own execution flow and CUDA Graph, so switching modes in \sysname also switches the underlying execution path.
+}
 
 % Agent 任务的调度优化问题定义
 \subsection{Scheduling Objective for Agent Tasks}

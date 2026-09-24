@@ -5,7 +5,9 @@
 \subsection{Experimental Setup}
 
 \textbf{Hardware.}
-\sysname is evaluated on two servers \xiaoxirev{representing a resource-constrained environment and a relatively-abundant resource environment}: \textbf{4$\times$ NVIDIA RTX 4090-24GB} GPUs connected via PCIe 4.0 with an Intel Xeon Gold 6338N CPU (128 cores),
+% \sysname is evaluated on two servers \xiaoxirev{representing a resource-constrained environment and a relatively-abundant resource environment}: \textbf{4$\times$ NVIDIA RTX 4090-24GB} GPUs connected via PCIe 4.0 with an Intel Xeon Gold 6338N CPU (128 cores),
+% and \textbf{4$\times$ NVIDIA A100-SXM4-80GB} GPUs connected via NVLink 3.0 with an Intel Xeon Platinum 8369B CPU (128 cores).
+\sysname is evaluated on two servers representing a resource-constrained environment and a relatively-abundant resource environment: \textbf{4$\times$ NVIDIA RTX 4090-24GB} GPUs connected via PCIe 4.0 with an Intel Xeon Gold 6338N CPU (128 cores),
 and \textbf{4$\times$ NVIDIA A100-SXM4-80GB} GPUs connected via NVLink 3.0 with an Intel Xeon Platinum 8369B CPU (128 cores).
 
 \textbf{Models.}
@@ -38,6 +40,7 @@ A detailed analysis of the agent request characteristics and available hardware 
     \begin{center}
     \includegraphics[width=1.0\linewidth]{figures/3-end2end jct.pdf}
     \end{center}
+    \vspace{-15pt}
     \caption{
         End to End Avg Jct.
     }
@@ -79,10 +82,10 @@ These results show that \sysname is not specific to a particular model scale or 
 Our evaluation covers two substantially different hardware resource regimes.
 The 4090-24G platform provides relatively limited GPU memory and low-bandwidth inter-GPU communication, representing a resource-constrained serving environment, whereas the A100-80GB platform provides abundant GPU memory and high-speed NV-Link interconnects, representing a resource-abundant serving environment.
 
-\begin{itemize}
+\begin{itemize}[leftmargin=10pt]
     \item 
         Under the resource-constrained setting, limited compute capability and memory resources introduce two challenges that \sysname addresses through its SD switching and scheduling mechanisms, respectively.
-        \begin{itemize}
+        \begin{itemize}[leftmargin=10pt]
             \item 
                 The system becomes compute-bound at relatively small running batch sizes, resulting in a low crossover point beyond which SD no longer provides acceleration.
                 Consequently, Non-SD is preferred for a large fraction of execution.
@@ -102,39 +105,10 @@ The 4090-24G platform provides relatively limited GPU memory and low-bandwidth i
 % 消融实验
 \subsection{Ablation Study}
 
-% 介绍剩余 Step 预测策略的准确率
-\textbf{Remaining-Step Prediction Accuracy.}
-We evaluate the predictor in~\autoref{sec:4.2} using Accuracy, Pair Accuracy, and Top-10\% Recall, which measure exact remaining-step prediction, pairwise ordering accuracy, and recall of the true shortest 10\% jobs, respectively.
-Since our scheduler mainly relies on queue ranking, the latter two metrics are more relevant.
-As shown in~\autoref{tab:prediction_performance}, Type-A achieves 100\% accuracy since its remaining steps are explicitly available from the planning prompt, while Type-B benefits from its multimodal step distribution.
-Although Type-C is more difficult to predict, state information still provides useful estimates.
-Overall, \sysname achieves \textbf{84.1\% Pair Accuracy} and \textbf{82.2\% Top-10\% Recall}, providing reliable signals for scheduling.
-
-% 介绍消融实验
-
-% 对比调度策略
-\textbf{Impact of Scheduling.}
-We first evaluate the impact of \sysname's remaining-step-aware scheduling.
-Compared with ThunderAgent (\autoref{fig:ablation}, 1), adding the \sysname scheduler (\autoref{fig:ablation}, 4) reduces average JCT from 82.5\,s to 55.1\,s, corresponding to a \textbf{1.50$\times$} speedup.
-A similar improvement is observed when combined with vLLM DSD (\autoref{fig:ablation}, 2 vs 5), where average JCT decreases from 72.0\,s to 48.2\,s.
-These results show that prioritizing jobs with shorter predicted remaining steps is more effective for reducing average JCT than throughput-oriented scheduling alone.
-
-% 对比不同的动态 SD 实现方式
-\textbf{Impact of Dynamic SD Mechanisms.}
-We next compare different implementations of dynamic SD.
-Replacing vLLM DSD with \sysname's runtime SD switching reduces average JCT from 72.0\,s to 64.6\,s under the ThunderAgent scheduler (\autoref{fig:ablation}, 2 vs 3). 
-When combined with the \sysname scheduler, the average JCT further decreases from 48.2\,s with vLLM DSD to 44.5\,s with \sysname (\autoref{fig:ablation}, 5 vs 6).
-This improvement mainly comes from \sysname's lower overhead in Non-SD mode (see~\autoref{dynamic-sd-comparison}), while preserving comparable performance to the baseline in SD mode.
-
-% 与理想情况的差距
-\textbf{Gap to Oracle.}
-Finally, we compare \sysname with an oracle configuration that uses oracle remaining-step information for scheduling.
-The oracle configuration achieves an average JCT of 43.0\,s, compared with 44.5\,s for \sysname, leaving only a \textbf{3.5\%} gap (\autoref{fig:ablation}, 6 vs 7).
-This small gap indicates that the predicted remaining steps are sufficient to achieve performance close to scheduling with ground-truth remaining steps.
-
-
 % 消融实验结果图
-\begin{figure}[t]
+
+\begin{figure}[!t]
+    \vspace{-20pt}
     \centering
 
     % 预测方法性能指标表格
@@ -193,9 +167,40 @@ This small gap indicates that the predicted remaining steps are sufficient to ac
     \begin{minipage}[t]{0.45\linewidth}
         \vspace{0pt}
         \centering
+        \setlength{\abovecaptionskip}{-10pt}
         \includegraphics[width=\linewidth]{figures/4-ablation.pdf}
         \captionof{figure}{Ablation study of \sysname on average JCT, showing the contribution of SD switching and scheduling.}
         \label{fig:ablation}
     \end{minipage}
 
 \end{figure}
+
+% 介绍剩余 Step 预测策略的准确率
+\textbf{Remaining-Step Prediction Accuracy.}
+We evaluate the predictor in~\autoref{sec:4.2} using Accuracy, Pair Accuracy, and Top-10\% Recall, which measure exact remaining-step prediction, pairwise ordering accuracy, and recall of the true shortest 10\% jobs, respectively.
+Since our scheduler mainly relies on queue ranking, the latter two metrics are more relevant.
+As shown in~\autoref{tab:prediction_performance}, Type-A achieves 100\% accuracy since its remaining steps are explicitly available from the planning prompt, while Type-B benefits from its multimodal step distribution.
+Although Type-C is more difficult to predict, state information still provides useful estimates.
+Overall, \sysname achieves \textbf{84.1\% Pair Accuracy} and \textbf{82.2\% Top-10\% Recall}, providing reliable signals for scheduling.
+
+% 介绍消融实验
+
+% 对比调度策略
+\textbf{Impact of Scheduling.}
+We first evaluate the impact of \sysname's remaining-step-aware scheduling.
+Compared with ThunderAgent (\autoref{fig:ablation}, 1), adding the \sysname scheduler (\autoref{fig:ablation}, 4) reduces average JCT from 82.5\,s to 55.1\,s, corresponding to a \textbf{1.50$\times$} speedup.
+A similar improvement is observed when combined with vLLM DSD (\autoref{fig:ablation}, 2 vs 5), where average JCT decreases from 72.0\,s to 48.2\,s.
+These results show that prioritizing jobs with shorter predicted remaining steps is more effective for reducing average JCT than throughput-oriented scheduling alone.
+
+% 对比不同的动态 SD 实现方式
+\textbf{Impact of Dynamic SD Mechanisms.}
+We next compare different implementations of dynamic SD.
+Replacing vLLM DSD with \sysname's runtime SD switching reduces average JCT from 72.0\,s to 64.6\,s under the ThunderAgent scheduler (\autoref{fig:ablation}, 2 vs 3). 
+When combined with the \sysname scheduler, the average JCT further decreases from 48.2\,s with vLLM DSD to 44.5\,s with \sysname (\autoref{fig:ablation}, 5 vs 6).
+This improvement mainly comes from \sysname's lower overhead in Non-SD mode (see~\autoref{dynamic-sd-comparison}), while preserving comparable performance to the baseline in SD mode.
+
+% 与理想情况的差距
+\textbf{Gap to Oracle.}
+Finally, we compare \sysname with an oracle configuration that uses oracle remaining-step information for scheduling.
+The oracle configuration achieves an average JCT of 43.0\,s, compared with 44.5\,s for \sysname, leaving only a \textbf{3.5\%} gap (\autoref{fig:ablation}, 6 vs 7).
+This small gap indicates that the predicted remaining steps are sufficient to achieve performance close to scheduling with ground-truth remaining steps.

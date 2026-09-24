@@ -29,11 +29,11 @@ Moreover, their systems typically rely on predefined switching policies, without
 
 % 4. 引入两个挑战
 These observations raise two key challenges:
-\begin{enumerate}%[leftmargin=*]
+\begin{enumerate}[leftmargin=10pt]
     % 如何更彻底地根据外部需求在 SD 和 NonSD 之间切换而不产生太多额外的开销
-    \item \textbf{How to cleanly switch between SD and non-SD modes based on external decisions with less runtime overhead?}  
+    \item \textbf{How to cleanly switch between native SD and non-SD modes based on external decisions with less runtime overhead?}  
     % 在不同的并发度导致的瓶颈下如何降低 agent job 的端到端时延
-    \item \textbf{How to reduce end-to-end latency under different concurrency with shifting latency bottlenecks?}
+    \item \textbf{How to reduce end-to-end latency under different concurrency with shifting bottlenecks?}
 \end{enumerate}
 
 % 系统架构图
@@ -42,6 +42,7 @@ These observations raise two key challenges:
     \begin{center}
     \includegraphics[width=0.9\linewidth]{figures/1-system overview.pdf}
     \end{center}
+    \vspace{-10pt}
     \caption{Overview of \sysname. \sysname combines remaining-step-aware task scheduling with adaptive SD control. The scheduler estimates the remaining steps of agent jobs and prioritizes shorter jobs, while the SD controller selects between native SD and non-SD execution based on offline profiling and online serving load.}
     \label{fig:overview}
 \end{figure}
@@ -69,17 +70,20 @@ Together, these components coordinate task scheduling and inference-mode selecti
 
 Our contributions can be summarized as follows:
 % 5-2. 列举 Contribution
-\begin{itemize}
+%\begin{itemize}
     % 彻底的可供外部调用的 SD-NonSD 切换接口。
-    \item \textbf{Externally Controllable SD Switching.}
+    
+\noindent\textbf{Externally Controllable SD Switching.}
     We extend the inference engine with an externally controllable switching interface that enables complete iteration-level switching between native SD and non-SD execution modes, reducing runtime overhead by up to 71.3\%.
     % 轻量级的 Agent 任务剩余 Step 预测器。
-    \item \textbf{Lightweight Agent Remaining-Step Prediction.}
+    
+\noindent\textbf{Lightweight Agent Remaining-Step Prediction.}
     We design a lightweight history-based estimator that predicts the remaining steps of an agent job using its workload, workflow, current step, and prompt-derived keywords, achieving an average pair prediction accuracy of 84.1\% and top-10\% recall of 82.2\%.
     % 基于并发度联合优化 Agent 任务调度和 SD 切换。
-    \item \textbf{Load-Adaptive Agent Scheduling and SD Selection.}
+    
+\noindent\textbf{Load-Adaptive Agent Scheduling and SD Selection.}
     We selectively enable SD based on offline profiling under low concurrency, while disabling SD and prioritizing jobs with fewer predicted remaining steps under high concurrency.
-\end{itemize}
+%\end{itemize}
 
 % 6 概括实验
 % We conduct extensive evaluations of \sysname across three LLMs, two hardware platforms, four agent workloads, three agent workflows, and two real-world online serving traces. 
