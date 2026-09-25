@@ -1,7 +1,7 @@
 % 从 agent task 引入到 LLM
 Large language model (LLM)-powered agents often invoke multiple LLM requests, making LLM inference a major contributor to end-to-end task completion time. 
 % 阐述核心动机：Agent 的 LLM 瓶颈随负载变化而变化
-Our measurements reveal that the dominant bottleneck shifts with serving load: from at low concurrency to queueing at high concurrency.
+Our measurements reveal that the dominant bottleneck shifts with serving load: from decoding at low concurrency to queueing at high concurrency.
 %
 % 
 % 
@@ -16,7 +16,7 @@ Our measurements reveal that the dominant bottleneck shifts with serving load: f
 % 
 % 
 % 引入 SD 说明 SD 和 Dynamic SD 的问题
-Speculative decoding (SD) is a state-of-the-art technique for accelerating LLM inference, but its benefits diminish as serving load increases and can even become negative under high load. Existing adaptive SD methods cannot eliminate this problem because they lack native non-SD execution, while conventional serving schedulers do not fully exploit workflow structure and completion progresses of agent tasks.
+Speculative decoding (SD) is a state-of-the-art technique for accelerating LLM inference, but its benefits diminish as serving load increases and can even become negative under high load. Existing adaptive SD methods cannot eliminate this problem because they lack native non-SD execution, while conventional serving schedulers do not fully exploit workflow structure and completion progress of agent tasks.
 % 提出我们的方法
 To address these challenges, we design SpecSys, an efficient inference system for agent workloads that enables load-aware selective SD with completion-aware scheduling. 
 % 开放 SD 切换接口

@@ -28,12 +28,9 @@
 % To support customizable SD selection policies at the upper layer, \sysname extends the underlying inference engine with an externally controllable runtime SD switch  \xiaoxi{emphasize the existing dynamic SD pre-sets a static switching condition, and more importantly, their default path is fixed to the SD Path, resulting a xxxx overhead.}.
 
 
-Existing dynamic SD approaches have two limitations. First, their switching logic is embedded within the inference engine, limiting customized upper-layer control. Second, disabling SD does not necessarily restore the native non-SD path: %their non-SD mode is still confined to the SD path, %retaining substantial residual overhead. 
-% as shown in~\autoref{tab:token_consistency_form} and~\autoref{fig:nonsd_overhead_b32}.
-as shown in~\autoref{tab:token_consistency_form}, vLLM Dynamic SD (vLLM-DSD) and SGLang Adaptive SD (SGLang-ASD) with zero draft length remain token-consistent with native SD but not with native Non-SD, indicating that they still follow the SD path 
-(detailed in~\autoref{dynamic-sd-comparison}). %The resulting overhead is shown in~\autoref{fig:nonsd_overhead_b32}.
+Existing dynamic SD approaches have two limitations. First, their switching logic is embedded within the inference engine, limiting customized upper-layer control. Second, their non-SD mode is still confined to the SD path, retaining substantial residual overhead, as shown in~\autoref{tab:token_consistency_form} and~\autoref{fig:nonsd_overhead_b32}.
 \sysname %exposes an externally controllable runtime interface that 
-addresses these issues by decoupling mode selection logic from engine execution and switching directly between native SD and non-SD paths, significantly reducing non-SD overhead (see~\autoref{fig:nonsd_overhead_b32}). As shown in~\autoref{fig:sd_switch}, this design consists of three components: %an external control interface, an iteration-level state transition in the scheduler, and path-specific execution paths in the worker (Figure~\autoref{fig:sd_switch}).
+addresses these issues by decoupling mode selection logic from engine execution and switching directly switches between native SD and non-SD paths. As shown in~\autoref{fig:sd_switch}, this design consists of the following three components: %an external control interface, an iteration-level state transition in the scheduler, and path-specific execution paths in the worker (Figure~\autoref{fig:sd_switch}).
 % \xiaoxi{Please change the description of Figure~\ref{fig:sd_switch} to the phenomenon/benefit of switching.} 
 
 % \xiaoxi{Move Table~\ref{tab:token_consistency} and Figure~\ref{fig:nonsd_overhead} here in a compact way.}
@@ -48,40 +45,31 @@ addresses these issues by decoupling mode selection logic from engine execution 
     % =========================
     \begin{minipage}[t]{0.73\linewidth}
         \centering
-        \captionof{table}{Token consistency across adaptive SD approaches.}
+        \captionof{table}{Execution path comparison across adaptive SD approaches.}
         \label{tab:token_consistency_form}
-    
+
         \resizebox{\linewidth}{!}{
-        \begin{tabular}{cccc}
+        \begin{tabular}{ccc}
             \toprule
-            \textbf{Inference Engine} &
             \textbf{Approach} &
-            \textbf{Non-SD} &
-            \textbf{SD} \\
+            \makecell{\textbf{Non-SD Path}} &
+            \makecell{\textbf{SD Path}} \\
             \midrule
-    
-            \multirow{3}{*}{vLLM}
-            & Dynamic SD ($\text{draft\_len}=0$)
+        
+            \makecell[l]{vLLM Dynamic SD ($\text{draft\_len}=0$)}
             & $\times$ & $\checkmark$ \\
-    
-            & SpecSys-NonSD
-            & $\checkmark$ & -- \\
-    
-            & SpecSys-SD
-            & -- & $\checkmark$ \\
-    
+        
+            \makecell[l]{SGLang Adaptive SD ($\text{draft\_len}=0$)}
+            & $\times$ & $\checkmark$ \\
+        
             \midrule
-    
-            \multirow{3}{*}{SGLang}
-            & Adaptive SD ($\text{draft\_len}=0$)
+        
+            SpecSys-NonSD
+            & $\checkmark$ & $\times$ \\
+        
+            SpecSys-SD
             & $\times$ & $\checkmark$ \\
-    
-            & SpecSys-NonSD
-            & $\checkmark$ & -- \\
-    
-            & SpecSys-SD
-            & -- & $\checkmark$ \\
-    
+        
             \bottomrule
         \end{tabular}
         }
@@ -106,16 +94,15 @@ addresses these issues by decoupling mode selection logic from engine execution 
 \textbf{External Control Interface.}
 % \sysname extends the inference engine with a lightweight control interface to receive SD switching requests and forward them to the scheduler to update the desired execution mode.
 % This design decouples the external scheduling policy from the internal execution logic of the inference engine. \xiaoxi{still need to highlight the fundamental benefit, e.g., improved deployment flexibility or extendibility}
-\sysname exposes a lightweight control interface that receives SD switching requests and forwards them to the scheduler to update the desired execution mode.
-This design decouples the switching policy from internal execution logic, allowing customized policies to be changed or replaced without modifying the underline inference engine.
-%As a result, \sysname can be flexibly integrated with different deployment environments and external scheduling strategies.
+\sysname extends the inference engine with a lightweight control interface that receives SD switching requests and forwards them to the scheduler to update the desired execution mode.
+This design decouples external control policies from internal execution logic, allowing switching policies to be modified or replaced independently of the inference engine.
+As a result, \sysname can be flexibly integrated with different deployment environments and external scheduling strategies.
 
 % scheduler
 \textbf{Iteration-Level State Transition.}
 % To ensure execution consistency, \sysname performs SD switching only at inference-iteration boundaries \xiaoxi{A better way to highlight our method that enables iteration-level switching should be relating this iteration-level switching to the purpose of reducing JCT in addition to execution consistency}. 
-%To eliminate the lag between external control and internal execution introduced by this decoupled design, \sysname adopts iteration-level switching, allowing switching requests to take effect at the next inference iteration.
-%Specifically, the scheduler maintains a current mode and an expected mode. External requests update only the expected mode, which is applied to the worker at the next iteration boundary.
-Serving conditions can change while a continuous batch remains active, so coarse-grained reconfiguration may delay a needed switch. \sysname therefore applies mode changes at inference-iteration boundaries, so controller decisions take effect at the next iteration without disrupting the current one. The scheduler tracks current and next modes; external requests update the next mode, which is then propagated to the worker.
+To eliminate the lag between external control and internal execution introduced by this decoupled design, \sysname adopts iteration-level switching, allowing switching requests to take effect at the next inference iteration.
+Specifically, the scheduler maintains a current mode and an expected mode. External requests update only the expected mode, which is applied to the worker at the next iteration boundary.
 
 % worker
 \textbf{Path-Specific Worker Execution.}
@@ -143,31 +130,24 @@ Existing dynamic SD approaches focus on the SD path and provide limited optimiza
 %     \item \textbf{Type B} represents multi-step iterative workflows, such as AgentFlow, where tasks terminate at specific step boundaries and exhibit a multimodal step distribution, making the completion step easier to estimate using the mode of the historical distribution.
 %     \item \textbf{Type C} represents step-by-step workflows, such as ReAct, where tasks may terminate at almost any step, making prediction more difficult and requiring additional execution-state information.
 % \end{itemize}
-To exploit agent-specific execution patterns for remaining-step prediction, we profile representative agent workflows and categorize them into three types:
-%To realize an efficient scheduling mechanism that exploits unique characteristics of agent workloads, we conduct a profiling experiment
+To realize an efficient scheduling mechanism that exploits unique characteristics of agent workloads, we conduct a profiling experiment
 %Based on our profiling results 
-%(\autoref{step-distribution}), which reveals two insights: {\em (i) Agent execution patterns vary across workflows and workloads. (ii) The prompts of LLM inference steps provide useful information of the current execution state that can guide scheduling decisions}. 
-%First, we categorize today's agent workflows into three types:
-
-% \begin{itemize}[leftmargin=10pt]\label{type-describe}
-%     \item \textbf{Type A} represents planning-based workflows, such as Plan-and-Solve, where the planned step count can be directly extracted from the \xiaoxirev{planning output}, making prediction straightforward.
-%     \item \textbf{Type B} represents multi-step iterative workflows, such as AgentFlow, where tasks terminate at specific step boundaries and exhibit a multimodal step distribution, making the completion step easier to estimate using the mode of the historical distribution.
-%     \item \textbf{Type C} represents step-by-step workflows, such as ReAct, where tasks may terminate at almost any step, making prediction more difficult and requiring additional execution-state information.
-% \end{itemize}
+(\autoref{step-distribution}), which reveals two insights: {\em (i) Agent execution patterns vary across workflows and workloads. (ii) The prompts of LLM inference steps provide useful information of the current execution state that can guide scheduling decisions}. 
+First, we categorize today's agent workflows into three types:
 
 \begin{itemize}[leftmargin=10pt]\label{type-describe}
-    \item \textbf{Type A} represents planning-based workflows, such as Plan-and-Solve, where the planned step count can be extracted from the planning output. %, making prediction straightforward. 
-    A parsing example is provided in~\autoref{prompt_parser}.
-    \item \textbf{Type B} represents multi-step iterative workflows, such as AgentFlow, where tasks terminate at specific step boundaries and exhibit a multimodal step distribution (see~\autoref{step-distribution}), enabling completion-step  estimation from historical distributions.
-    \item \textbf{Type C} represents step-by-step workflows, such as ReAct, where tasks may terminate at almost any step, requiring additional execution-state information for prediction.
+    \item \textbf{Type A} represents planning-based workflows, such as Plan-and-Solve, where the planned step count can be directly extracted from the prompt, making prediction straightforward.
+    \item \textbf{Type B} represents multi-step iterative workflows, such as AgentFlow, where tasks terminate at specific step boundaries and exhibit a multimodal step distribution, making the completion step easier to estimate using the mode of the historical distribution.
+    \item \textbf{Type C} represents step-by-step workflows, such as ReAct, where tasks may terminate at almost any step, making prediction more difficult and requiring additional execution-state information.
 \end{itemize}
-Across these workflow types, our profiling identifies two complementary signals for remaining-step prediction: historical execution patterns conditioned on workflow and workload, and execution-state cues exposed by the current LLM-call prompt.
+
+
 
 % 解析请求附带的信息，提取状态关键词，然后分类。
 \textbf{Request-Level Information Extraction.}
-For each LLM request, the upstream agent application provides its workflow, workload, and current execution step as metadata. 
-\sysname further parses the prompt for keywords indicating {\em errors, repeated actions, completion, and termination}, and maps the request to a workflow-specific {\em execution state}.
-Concrete examples are provided in~\autoref{prompt_parser}.
+For each LLM request, the upstream agent application provides the workflow, workload, and current execution step as metadata. 
+\sysname further parses the prompt for state-indicative keywords related to errors, repeated actions, completion, and termination, and maps the request to a workflow-specific execution state.
+Examples of this information extraction process are provided in~\autoref{prompt_parser}.
 
 % 分类保存历史记录
 \textbf{Offline History Profiling.}
@@ -182,8 +162,8 @@ The profiling cost is negligible, as \sysname only maintains lightweight statist
 % 剩余 step 数估计
 \textbf{Remaining-Step Estimation.}
 % todo: 解释一下为什么要用这样的方法
-%\sysname adopts different estimation strategies based on the characteristics of each workflow type as described in~\autoref{type-describe}.
-For each workflow type, \sysname estimates the remaining steps using workflow-specific signals. Let $\hat{R}_x$ denote the estimate for Type $x$. Type A leverages the explicit plan, Type B uses the most frequent historical completion step to capture recurring termination patterns, Type C further incorporates state transitions and uses the median for more robust estimation.
+\sysname adopts different estimation strategies based on the characteristics of each workflow type as described in~\autoref{type-describe}.
+Type A directly leverages the explicit plan, Type B uses the most frequent historical completion step to capture recurring termination patterns, Type C further incorporates state transitions and uses the median for more robust estimation.
 
 % Type A，解析 plan 直接得到 P ，然后 P-k 得到剩余 step
 For \textbf{Type A}, let $P$ denote the planned step count extracted from the prompt. 
@@ -212,7 +192,7 @@ For \textbf{Type C}, \sysname further conditions the historical records on both 
 \hat{R}_{C} = \max(0, \hat{T}_{C}-k).
 \end{equation}
 
-When the fine-grained statistics are insufficient, \sysname progressively falls back to the current-state-conditioned distribution and then to the workflow-workload-level historical distribution.
+When the fine-grained statistics are insufficient, \sysname progressively falls back to the current-state-conditioned distribution and then to the workflow--workload-level historical distribution.
 
 
 % 3.基于动态负载的 Agent 任务调度和 SD 选择
@@ -222,7 +202,7 @@ When the fine-grained statistics are insufficient, \sysname progressively falls 
 % 离线 profile 出不同配置下的 SD加速比与推理负载的关系，得到一个平衡点。
 \textbf{Offline SD Speedup Profiling.}
 \label{sec:4.3.1}
-For each model and hardware configuration, \sysname profiles SD speedup across different batch sizes before engine startup and identifies the data-independent, hardware-dependent break-even load $B^{*}$, defined as the largest batch size at which SD achieves a speedup greater than or equal to 1.
+For each model and hardware configuration, \sysname profiles the relationship between serving load and SD speedup, and identifies a break-even load $B^{*}$.
 SD is beneficial below $B^{*}$, while its overhead can cause performance degradation above this point. Detailed profiling results are provided in~\autoref{sd-speedup}.
 
 % 负载估计
@@ -242,7 +222,7 @@ Specifically, it estimates the near-future load by combining the current running
 \mathrm{Enable\mbox{-}SD} =
 \begin{cases}
 \mathrm{True},  & \hat{B} \leq B^{*}, \\
-\mathrm{False}, & \hat{B} > B^{*}.
+\mathrm{False}, & \hat{B} > B^{*},
 \end{cases}
 \end{equation}
 This strategy enables SD under low load to mitigate the decode bottleneck.
@@ -253,7 +233,7 @@ When the serving load becomes high and agent tasks start queuing at the router-p
 \begin{equation}
 j^{*} =
 \operatorname*{arg\,min}_{j \in \mathcal{Q}}
-\hat{R}_{j},
+\hat{R}_{j}.
 \end{equation}
 where $\mathcal{Q}$ denotes the queued agent tasks and $\hat{R}_{j}$ is the remaining steps of task $j$ estimated by the predictor in~\autoref{sec:4.2}.
 This strategy prioritizes tasks closer to completion, thereby mitigating the queue bottleneck under high serving load.

@@ -14,20 +14,20 @@
 Existing token-level adaptive SD approaches can be broadly divided into two categories: one line of work dynamically adjusts drafting parameters, particularly the draft length, based on signals such as token acceptance rate, serving load, batch size, SLOs, and runtime performance~\citep{SpecDec++,TurboSpec,BanditSpec,AdaSpec,Nightjar,Learning_To_Draft}, with similar mechanisms also adopted by vLLM's Dynamic SD~\citep{vLLM} and SGLang's Adaptive SD~\citep{SGLang}.
 Another line of work instead focuses on verification optimization, dynamically allocating or pruning the verification workload across requests according to SLOs, token acceptance rate, and system load to improve batched verification efficiency~\citep{AdaServe,D-Cut,ECHO,DSpark}.
 % 说明我们与他们的不同
-% These approaches primarily focus on adapting the draft length within SD, whereas SpecSys determines whether SD should be enabled, making the two directions complementary. 
+% These approaches primarily focus on adapting the draft length within SD, whereas \sysname determines whether SD should be enabled, making the two directions complementary. 
 % Although some existing methods allow the draft length to be reduced to zero, this pseudo-non-SD mode may still retain SD overhead (detailed in~\autoref{dynamic-sd-comparison}). 
-% In contrast, SpecSys switches directly between native SD and non-SD execution paths, substantially reducing the overhead when SD is disabled. 
-% Moreover, existing adaptation policies are typically predefined at engine startup, while SpecSys exposes an external runtime interface that allows arbitrary upper-layer policies to control SD dynamically.
+% In contrast, \sysname switches directly between native SD and non-SD execution paths, substantially reducing the overhead when SD is disabled. 
+% Moreover, existing adaptation policies are typically predefined at engine startup, while \sysname exposes an external runtime interface that allows arbitrary upper-layer policies to control SD dynamically.
 % 描述改成更加简便
 These approaches optimize SD internally, typically using a zero draft length as a pseudo-non-SD configuration with residual overhead and fixed adaptation logic. 
-In contrast, SpecSys decides whether to enable SD, switches directly between native SD and non-SD paths, and exposes a runtime interface for arbitrary upper-layer control.
+In contrast, \sysname decides whether to enable SD, switches directly between native SD and non-SD paths, and exposes a runtime interface for arbitrary upper-layer control.
 
 
 % 介绍 agent 与 SD 结合的论文，说明我们跟他们的区别。
 Beyond conventional token-level SD, recent work extends speculation to semantic-level reasoning~\citep{SpecReason,DREAM-R}, and further to agent planning, action, or tool execution~\citep{Interactive_Speculative_Planning,Dynamic_Speculative_Agent_Planning,Speculative_Actions}.
-In contrast, these approaches primarily redesign the upper-level agent workflow, whereas SpecSys applies speculative decoding to the LLM requests within each agent job to accelerate inference without altering the agent structure, making it orthogonal to these approaches.
+These approaches redesign the upper-level agent workflow, whereas \sysname preserves the workflow and applies SD to LLM inference iterations within each agent task, making the two directions complementary. 
 % 简单阐述我们的方法理论上可以拓展到目前新兴的 speculative agent workflows
-In principle, our remaining-step prediction method could also be extended to such emerging speculative agent workflows by simply scaling the predicted number of remaining steps according to the speculative acceptance rate.
+In principle, our remaining-step prediction method could also be extended to such emerging speculative agent workflows by scaling the predicted number of remaining steps according to the speculative acceptance rate.
 
 
 \subsection{LLM and Agent Scheduling}
@@ -46,11 +46,12 @@ In principle, our remaining-step prediction method could also be extended to suc
 % % 说明我们与他们的不同
 % % 与 LLM 层面的预测和调度的不同
 % Among the above works, some \xiaoxi{please cite} propose scheduling methods based on the estimated remaining generation length of individual \xiaoxirev{steps of} LLM \xiaoxirev{calls within each agent task\footnote{In this work, we use `agent task' and `agent request' interchangeably.}} %requests, 
-% SpecSys operates at a granularity of the agent task by estimating the remaining steps of an entire agent task across multiple LLM calls \xiaoxi{why task level? as optimizing independently for individual steps might not be the global optimum in reducing the total JCT in the system.}.
+% \sysname operates at a granularity of the agent task by estimating the remaining steps of an entire agent task across multiple LLM calls \xiaoxi{why task level? as optimizing independently for individual steps might not be the global optimum in reducing the total JCT in the system.}.
 % % 与 Agent 层面的预测和调度的不同
-% Other agent schedulers \xiaoxi{cite} mainly rely on observed execution states or predictions of near-term execution stages, rather than explicitly estimating the remaining work of the entire agent task. SpecSys instead estimates the remaining number of agent steps and uses it to prioritize tasks closer to completion, \xiaoxirev{which follows the shortest-remaining-time-first principle to better approach the global optimum in JCT minimization.}
+% Other agent schedulers \xiaoxi{cite} mainly rely on observed execution states or predictions of near-term execution stages, rather than explicitly estimating the remaining work of the entire agent task. \sysname instead estimates the remaining number of agent steps and uses it to prioritize tasks closer to completion, \xiaoxirev{which follows the shortest-remaining-time-first principle to better approach the global optimum in JCT minimization.}
 
-Existing LLM schedulers optimize individual LLM requests through predicted output lengths or relative length rankings~\citep{SSJF,LTR}, online estimation of the remaining generation length~\citep{TRAIL}, preemptive queue-based scheduling~\citep{FastServe}, or memory-aware and SLO-aware scheduling based on estimated future resource demands~\citep{Past-Future,JITServe}. These methods operate primarily at the granularity of individual LLM calls. In contrast, SpecSys operates at the granularity of the entire agent task\footnote{In this work, we use `agent task' and `agent request' interchangeably.} by estimating its remaining steps across multiple LLM calls, since independently prioritizing individual calls may not align with minimizing the end-to-end JCT of agent tasks.
+Existing LLM schedulers optimize individual requests through predicted output lengths or relative length rankings~\citep{SSJF,LTR}, online remaining length estimation~\citep{TRAIL}, preemptive queue-based scheduling~\citep{FastServe}, or %memory-aware and SLO-aware scheduling based on 
+estimated future resource demands~\citep{Past-Future,JITServe}. These methods operate primarily at the granularity of individual LLM calls. In contrast, \sysname estimates the remaining steps of an entire agent task\footnote{In this work, we use `agent task' and `agent request' interchangeably.} by estimating its remaining steps across multiple LLM calls, since independently prioritizing individual calls may not align with minimizing the end-to-end JCT of agent tasks.
 
-Existing agent schedulers exploit application-level dependencies and dataflows~\citep{Parrot}, completed-call history or attained service~\citep{Agentix}, historical execution states and predicted future stages~\citep{Astraea}, program-level execution and resource states~\citep{ThunderAgent}, or workflow structure and cache information~\citep{Helium} to guide scheduling. However, they do not explicitly estimate the remaining work of an entire agent task. SpecSys instead estimates the remaining number of agent steps and prioritizes tasks closer to completion, following the shortest-remaining-time-first principle at the agent-task level to better align scheduling decisions with end-to-end JCT minimization.
+Existing agent schedulers exploit application dependencies and dataflows~\citep{Parrot}, completed-call history or attained service~\citep{Agentix}, historical states and predicted future stages~\citep{Astraea}, program-level execution and resource states~\citep{ThunderAgent}, or workflow structure and cache information~\citep{Helium}. However, they do not explicitly estimate the remaining work of an entire agent task. \sysname instead estimates the remaining number of agent steps and prioritizes tasks closer to completion, following the shortest-remaining-time-first principle at the agent-task level to better align scheduling decisions with end-to-end JCT minimization.
 

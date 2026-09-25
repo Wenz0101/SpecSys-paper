@@ -8,7 +8,7 @@ Large language models (LLMs) have evolved from chatbots to autonomous agents cap
 Representative agent workflows, including ReAct~\citep{ReAct}, Plan-and-Solve~\citep{Plan-and-Solve}, Reflexion~\citep{Reflexion} and AgentFlow~\citep{AgentFlow}, typically execute an agentic request through multiple interdependent stages and LLM calls. 
 As a result, users care about the end-to-end completion time of the entire workflow, which is often dominated by LLM generation, posing significant efficiency challenges for existing LLM inference systems.
 % 1-3.我们的实验表明 Agent 应用的 LLM 请求在不同负载情况下瓶颈不同。
-Our measurements (\autoref{llm-time-ratio}) reveals that the dominant latency bottleneck of agentic LLM requests varies with the concurrency. Under low concurrency, decode time dominates request latency, whereas queueing delay grows rapidly with increasing concurrency and eventually becomes the dominant latency component. 
+Our measurements (\autoref{llm-time-ratio}) reveal that the dominant latency bottleneck of agentic LLM requests varies with concurrency. Under low concurrency, decode time dominates request latency, whereas queueing delay grows rapidly with increasing concurrency and eventually becomes the dominant latency component. 
 
 % 2.介绍 SD
 
@@ -17,12 +17,12 @@ Speculative decoding (SD) is a widely adopted technique to accelerate LLM decodi
 % 2-2.说明 Agent 场景下 SD 的机遇。
 Agent workloads provide additional opportunities for SD due to their repetitive and structured generation patterns, such as recurring intermediate outputs, tool calls, and schema-constrained responses~\citep{SuffixDecoding,ToolSpec,AgentSpec}.
 % 2-3.介绍 SD 的局限性。
-However, the effectiveness of SD is highly sensitive to batch size. Previous studies have shown that SD speedup for LLM inference decreases as batch size increases and can eventually turn into performance degradation~\cite{SD-Speedup,SSSD,TurboSpec}. 
-Our measurements (\autoref{sd-speedup}) reveals the same trend for agent workloads. In online agent serving, however, the running batch size varies substantially over time due to dynamic request arrivals and intermittent tool execution between LLM calls.
+However, the effectiveness of SD is highly sensitive to batch size. Previous studies have shown that SD speedup for LLM inference decreases as batch size increases and can eventually turn into performance degradation~\citep{SD-Speedup,SSSD,TurboSpec}. 
+Our measurements (\autoref{sd-speedup}) reveal the same trend for agent workloads. In online agent serving, however, the running batch size varies substantially over time due to dynamic request arrivals and intermittent tool execution between LLM calls.
 
 % 3.介绍现有的 Dynamic SD 
 % 3-1.介绍 Dynamic SD 
-Recent dynamic SD approaches adapt the draft length according to runtime signals such as batch size and token acceptance rate, and may reduce the draft length to zero when speculation is unfavorable~\cite{TurboSpec,SpecDec++,Nightjar}. 
+Recent dynamic SD approaches adapt the draft length according to runtime signals such as batch size and token acceptance rate, and may reduce the draft length to zero when speculation is unfavorable~\citep{TurboSpec,SpecDec++,Nightjar}. 
 % 3-2.说明 Dynamic SD 的局限性。
 But these approaches perform adaptation internally within the SD framework rather than explicitly switching between native SD and non-SD execution paths. Our experiments show that such internal adaptation can still incur noticeable overhead compared with native non-SD execution (\autoref{dynamic-sd-comparison}). 
 Moreover, their systems typically rely on predefined switching policies, without exposing runtime control to external schedulers, which limits customized SD selection based on higher-level scheduling decisions.
@@ -31,9 +31,9 @@ Moreover, their systems typically rely on predefined switching policies, without
 These observations raise two key challenges:
 \begin{enumerate}[leftmargin=10pt]
     % 如何更彻底地根据外部需求在 SD 和 NonSD 之间切换而不产生太多额外的开销
-    \item \textbf{How to cleanly switch between native SD and non-SD modes based on external decisions with less runtime overhead?}  
+    \item \textbf{How to cleanly switch between native SD and non-SD modes based on external decisions with lower runtime overhead?}  
     % 在不同的并发度导致的瓶颈下如何降低 agent job 的端到端时延
-    \item \textbf{How to reduce end-to-end latency under different concurrency with shifting bottlenecks?}
+    \item \textbf{How to reduce end-to-end latency under varying concurrency with shifting bottlenecks?}
 \end{enumerate}
 
 % 系统架构图
@@ -47,6 +47,7 @@ These observations raise two key challenges:
     \label{fig:overview}
 \end{figure}
 
+
 % % 5. 介绍我们的方法(SpecSys)
 % % 为了解决以上挑战，我们设计了 \sysname,引用系统架构图。
 % To address these challenges, we design \sysname, an LLM inference system tailored for agent workloads, as shown in \autoref{fig:overview}. 
@@ -59,16 +60,15 @@ These observations raise two key challenges:
 % % 在并发度较高时，\sysname 会根据 Agent 任务传入的 workload，workflow，当前step，以及prompt 中解析得到的关键词，使用历史记录分类查表的方式预测 Agent 任务的剩余 Step 数，然后贪心地选择哪些剩余 Step 数较低的任务，以缓解排队瓶颈。
 % Under high concurrency, \sysname uses a lightweight history-based estimator to predict the remaining steps of each agent job based on its workload, workflow, current step, and prompt-derived keywords, and greedily prioritizes jobs with fewer predicted remaining steps to alleviate the queueing bottleneck.
 % 修改 \sysname 的介绍，改成介绍图中的四部分。
-To address these challenges, we design \sysname, an LLM inference system tailored for agent workloads, as shown in \autoref{fig:overview}. 
-\sysname consists of four main components.
-First, \textbf{Agent Tasks} represent multi-step agent jobs with diverse workloads and workflows, whose LLM requests are forwarded to the scheduling layer.
-Second, \textbf{Task Scheduling} extracts task-level features, estimates the remaining execution progress from historical information, and determines the execution priority of pending jobs.
-Third, the \textbf{Adaptive SD Controller} combines offline profiling with online serving metrics to determine the appropriate inference mode at runtime.
-Finally, the \textbf{Inference Engine} executes requests through native non-SD or SD paths under continuous batching, while periodically reporting runtime metrics and receiving mode-switching requests from the controller.
-Together, these components coordinate task scheduling and inference-mode selection to reduce end-to-end agent task latency under varying serving loads.
+To address these challenges, we design \sysname, an agent-oriented LLM inference system comprising four components, as shown in \autoref{fig:overview}. 
+\textbf{Agent Tasks} represent multi-step agent tasks across diverse workloads and workflows and forward their LLM calls to the scheduler.
+\textbf{Task Scheduling} extracts task-level features, estimates remaining execution steps from execution history, and prioritizes pending tasks.
+The \textbf{Adaptive SD Controller} combines offline profiling with online serving metrics to determine the inference mode at runtime.
+Finally, the \textbf{Inference Engine} executes requests through native non-SD or SD paths under continuous batching, reporting runtime metrics and applying controller-issued mode-switches.
+%Together, these components coordinate task scheduling and inference-mode selection to reduce end-to-end agent task latency under varying serving loads. 
 
-
-Our contributions can be summarized as follows:
+To realize \sysname, we make the following technical contributions:
+%Our contributions can be summarized as follows:
 % 5-2. 列举 Contribution
 %\begin{itemize}
     % 彻底的可供外部调用的 SD-NonSD 切换接口。
@@ -78,7 +78,7 @@ Our contributions can be summarized as follows:
     % 轻量级的 Agent 任务剩余 Step 预测器。
     
 \noindent\textbf{Lightweight Agent Remaining-Step Prediction.}
-    We design a lightweight history-based estimator that predicts the remaining steps of an agent job using its workload, workflow, current step, and prompt-derived keywords, achieving an average pair prediction accuracy of 84.1\% and top-10\% recall of 82.2\%.
+    We design a lightweight history-based estimator that predicts an agent job's remaining steps from its workload, workflow, current step, and prompt-derived keywords, achieving 84.1\% average pair prediction accuracy and 82.2\% top-10\% recall.
     % 基于并发度联合优化 Agent 任务调度和 SD 切换。
     
 \noindent\textbf{Load-Adaptive Agent Scheduling and SD Selection.}
@@ -92,4 +92,4 @@ Our contributions can be summarized as follows:
 
 % 改成 与 abstract 不一致，一句话带过。
 % 改成在资源受限的设置下能够达到 2.1 的加速比。
-Extensive evaluations show that \sysname improves agent serving efficiency across diverse settings, with up to 2.10$\times$ lower average JCT in resource-constrained environments.
+Extensive evaluations show that \sysname improves agent serving efficiency across diverse settings, with up to a 2.10$\times$ speedup in average JCT under resource-constrained environments.

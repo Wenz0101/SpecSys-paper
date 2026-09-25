@@ -107,11 +107,11 @@ Therefore, an effective adaptive SD mechanism should not only adapt the draft le
         & SD
         & $\checkmark$ \\
 
-        & SpecSys-NonSD Mode
+        & \sysname-NonSD Mode
         & NonSD
         & $\checkmark$ \\
 
-        & SpecSys-SD Mode
+        & \sysname-SD Mode
         & SD
         & $\checkmark$ \\
 
@@ -126,11 +126,11 @@ Therefore, an effective adaptive SD mechanism should not only adapt the draft le
         & SD
         & $\checkmark$ \\
 
-        & SpecSys-NonSD Mode
+        & \sysname-NonSD Mode
         & NonSD
         & $\checkmark$ \\
 
-        & SpecSys-SD Mode
+        & \sysname-SD Mode
         & SD
         & $\checkmark$ \\
 
@@ -145,14 +145,14 @@ Therefore, token-level consistency provides a practical indicator of whether two
 We evaluate this behavior for two adaptive SD approaches, vLLM Dynamic SD and SGLang Adaptive SD, as shown in~\autoref{tab:token_consistency}.
 For both vLLM Dynamic SD and SGLang Adaptive SD, when SD is disabled by setting $\text{draft\_len}=0$, the generated tokens are inconsistent with those of the native Non-SD engine but remain consistent with those produced by the native SD engine.
 This indicates that setting $\text{draft\_len}=0$ does not fully switch execution back to the native Non-SD path; instead, the engine continues to follow the SD execution path with SD disabled.
-In contrast, SpecSys's Non-SD mode produces tokens consistent with the native Non-SD engine, while its SD mode remains consistent with the native SD engine.
-These results demonstrate that SpecSys performs a more complete runtime switch between the native SD and Non-SD execution paths.
+In contrast, \sysname's Non-SD mode produces tokens consistent with the native Non-SD engine, while its SD mode remains consistent with the native SD engine.
+These results demonstrate that \sysname performs a more complete runtime switch between the native SD and Non-SD execution paths.
 
 \textbf{Non-SD Overhead across Adaptive SD Approaches.}
 Since vLLM Dynamic SD and SGLang Adaptive SD continue to execute along the SD path when $\text{draft\_len}=0$, this path is suboptimal for autoregressive Non-SD generation and introduces additional performance overhead.
-We therefore measure the Non-SD execution overhead of these two Adaptive SD approaches and SpecSys relative to the native Non-SD engine, as shown in~\autoref{fig:nonsd_overhead}.
-However, SpecSys consistently incurs substantially lower overhead than vLLM Dynamic SD and SGLang Adaptive SD across all batch sizes.
-These results further demonstrate the benefit of SpecSys's more complete runtime switching between the native SD and Non-SD execution paths.
+We therefore measure the Non-SD execution overhead of these two Adaptive SD approaches and \sysname relative to the native Non-SD engine, as shown in~\autoref{fig:nonsd_overhead}.
+However, \sysname consistently incurs substantially lower overhead than vLLM Dynamic SD and SGLang Adaptive SD across all batch sizes.
+These results further demonstrate the benefit of \sysname's more complete runtime switching between the native SD and Non-SD execution paths.
 
 \begin{figure}[!b]
     \begin{center}
@@ -731,34 +731,68 @@ This trace is therefore well suited for evaluating both the Non-SD overhead intr
 
 \clearpage
 
+\section{Additional End-to-End Evaluation Metrics}
+\label{additional_metrics}
+
+Beyond average JCT, we further evaluate \sysname using additional end-to-end metrics, including P90 and P95 JCT as well as system throughput.
+These metrics provide a more comprehensive view of whether the average-JCT improvement of \sysname comes at the cost of tail latency or overall serving efficiency.
+The results are shown in~\autoref{fig:p90_p95_throughput}.
+
+\textbf{Tail Latency.}
+Since \sysname reduces average JCT by approximating shortest-remaining-time-first scheduling, long-running jobs may receive lower scheduling priority, potentially increasing tail latency.
+To examine whether this introduces a long-tail effect, we compare the P90 and P95 JCT across different model and tensor-parallel configurations.
+As shown in~\autoref{fig:p90_p95_throughput}, \sysname achieves P90 and P95 JCT comparable to or lower than the baselines, and in several configurations provides noticeable reductions.
+This indicates that \sysname reduces average JCT without introducing additional tail-latency degradation.
+
+\textbf{Throughput.}
+ThunderAgent's scheduling policy is primarily designed to maximize system throughput, whereas \sysname focuses on reducing average JCT through remaining-step-aware scheduling.
+We therefore further evaluate whether this latency improvement comes at the cost of throughput.
+As shown in~\autoref{fig:p90_p95_throughput}, \sysname maintains throughput comparable to the baselines across all evaluated configurations.
+These results demonstrate that the reduction in average JCT achieved by \sysname does not come at the expense of system throughput.
+
+
+\begin{figure}[H]
+    \begin{center}
+    \includegraphics[width=1.0\linewidth]{figures/p90_p95_throughput_summary.pdf}
+    \end{center}
+    \caption{
+    Additional end-to-end evaluation metrics on A100 GPUs.
+    Across different models and tensor-parallel configurations, \sysname achieves lower or comparable P90 and P95 JCT while maintaining comparable throughput, showing that its average-JCT improvements do not come at the cost of tail latency or system throughput.
+    }
+    \label{fig:p90_p95_throughput}
+\end{figure}
+
+
+\clearpage
+
 
 % 预测-调度策略的额外开销
-\section{Overhead of SpecSys Prediction and Scheduling}
+\section{Overhead of \sysname Prediction and Scheduling}
 \label{prediction-scheduling-overhead}
 
 \begin{table}[H]
 \centering
-\caption{Per-request scheduling overhead of ThunderAgent and SpecSys}
+\caption{Per-request scheduling overhead of ThunderAgent and \sysname}
 \label{tab:request-scheduling-overhead}
 \begin{tabular}{lrr}
 \toprule
 Scheduling Method & Processing Time (ms/request) & Increase over ThunderAgent (ms) \\
 \midrule
 ThunderAgent & 0.05086 & -- \\
-SpecSys      & 0.13189 & 0.08103 \\
+\sysname      & 0.13189 & 0.08103 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\autoref{tab:request-scheduling-overhead} compares the per-request scheduling overhead of ThunderAgent and SpecSys. ThunderAgent requires an average of \(0.05086\) ms per request, while SpecSys requires \(0.13189\) ms because it additionally estimates the remaining execution steps. The absolute increase is only \(0.08103\) ms per request. Compared with agent inference and tool-execution latencies, which typically range from hundreds of milliseconds to several seconds, this additional overhead is negligible.
+\autoref{tab:request-scheduling-overhead} compares the per-request scheduling overhead of ThunderAgent and \sysname. ThunderAgent requires an average of \(0.05086\) ms per request, while \sysname requires \(0.13189\) ms because it additionally estimates the remaining execution steps. The absolute increase is only \(0.08103\) ms per request. Compared with agent inference and tool-execution latencies, which typically range from hundreds of milliseconds to several seconds, this additional overhead is negligible.
 
 \begin{table}[H]
 \centering
-\caption{Paused-queue sorting overhead of ThunderAgent and SpecSys}
+\caption{Paused-queue sorting overhead of ThunderAgent and \sysname}
 \label{tab:paused-queue-sorting-overhead}
 \begin{tabular}{rrrr}
 \toprule
-Queue Size & ThunderAgent (ms) & SpecSys (ms) & Increase (ms) \\
+Queue Size & ThunderAgent (ms) & \sysname (ms) & Increase (ms) \\
 \midrule
 10     & 0.0059 & 0.0084 & 0.0024 \\
 100    & 0.0482 & 0.0706 & 0.0224 \\
@@ -768,7 +802,7 @@ Queue Size & ThunderAgent (ms) & SpecSys (ms) & Increase (ms) \\
 \end{tabular}
 \end{table}
 
-\autoref{tab:paused-queue-sorting-overhead} reports the sorting overhead under different paused-queue sizes. SpecSys is slightly more expensive than ThunderAgent because it prioritizes programs according to their predicted remaining steps. With 1,000 paused programs, SpecSys adds only \(0.304\) ms over ThunderAgent. Even with 10,000 paused programs, the additional sorting time is approximately \(3.25\) ms. 
+\autoref{tab:paused-queue-sorting-overhead} reports the sorting overhead under different paused-queue sizes. \sysname is slightly more expensive than ThunderAgent because it prioritizes programs according to their predicted remaining steps. With 1,000 paused programs, \sysname adds only \(0.304\) ms over ThunderAgent. Even with 10,000 paused programs, the additional sorting time is approximately \(3.25\) ms. 
 Since ThunderAgent performs periodic scheduling at a configurable interval, this sorting overhead remains small relative to typical scheduling intervals.
 
 
@@ -798,11 +832,11 @@ This setting ensures that the evaluated requests follow the same non-thinking ge
 For ThunderAgent, we set both \texttt{metrics-interval} and \texttt{scheduler-interval} to 5.0 seconds. Accordingly, ThunderAgent periodically collects serving statistics and performs scheduling decisions at 5-second intervals.
 
 \paragraph{Speculative Decoding and Switching Configuration.}
-We use EAGLE-3 as the speculative decoding method, with a default draft length of 3 unless otherwise specified. For vLLM Dynamic SD and SGLang Adaptive SD, the switching threshold \(T\) is determined separately for each model--hardware configuration from the profiling results in~\autoref{sd-speedup}. SD is enabled with a draft length of 3 when the running batch size is at or below \(T\), and disabled by setting the draft length to 0 when the batch size exceeds \(T\):
+We use EAGLE-3~\citep{eagle3} as the speculative decoding method, with a default draft length of 3 unless otherwise specified. For vLLM Dynamic SD and SGLang Adaptive SD, the switching threshold \(T\) is determined separately for each model--hardware configuration from the profiling results in~\autoref{sd-speedup}. SD is enabled with a draft length of 3 when the running batch size is at or below \(T\), and disabled by setting the draft length to 0 when the batch size exceeds \(T\):
 \[
 [1,T]\rightarrow 3,\qquad [T+1,256]\rightarrow 0.
 \]
-Here, \(T\) denotes the profiled SD break-even threshold. SpecSys uses the same profiled threshold to determine when to switch directly between its native SD and non-SD execution paths. The thresholds for individual configurations are reported in~\autoref{sd-speedup}.
+Here, \(T\) denotes the profiled SD break-even threshold. \sysname uses the same profiled threshold to determine when to switch directly between its native SD and non-SD execution paths. The thresholds for individual configurations are reported in~\autoref{sd-speedup}.
 
 \paragraph{Software Environment.}
 \autoref{tab:software-versions} lists the major software and system versions used in our experiments. Python versions used by the major agent and inference frameworks are summarized separately in~\autoref{tab:python-versions}.
@@ -820,8 +854,8 @@ Here, \(T\) denotes the profiled SD break-even threshold. SpecSys uses the same 
         ThunderAgent & 0.1.0 \\
         qwen-agent & 0.0.34 \\
         AgentFlow & 0.1.0 \\
-        SpecSys vLLM base & v0.17.1 \\
-        SpecSys SGLang base & v0.5.14 \\
+        \sysname vLLM base & v0.17.1 \\
+        \sysname SGLang base & v0.5.14 \\
         vLLM Dynamic SD & v0.24.0 \\
         SGLang Adaptive SD & v0.5.14 \\
         \bottomrule

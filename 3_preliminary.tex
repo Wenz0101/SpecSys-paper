@@ -16,7 +16,7 @@
 % \texttt{Sample\_Tokens}
 % \right).
 % \]
-In modern LLM inference systems such as vLLM~\citep{vLLM} and SGLang~\citep{SGLang}, an \textbf{inference iteration} refers to one complete scheduling-and-execution cycle. At each iteration, the \textbf{scheduler} updates the set of running requests and constructs the execution configuration for the current batch. The resulting scheduling information is then dispatched to \textbf{worker}, which perform model execution \textbf{\texttt{Execute\_Model}} followed by token processing \textbf{\texttt{Sample\_Tokens}}. Accordingly, each inference iteration follows the execution structure:
+In modern LLM inference systems such as vLLM~\citep{vLLM} and SGLang~\citep{SGLang}, an \textbf{inference iteration} refers to one complete scheduling-and-execution cycle. At each iteration, the \textbf{scheduler} updates the set of running requests and constructs the execution configuration for the current batch. The resulting scheduling information is then dispatched to the \textbf{worker}, which performs model execution \textbf{\texttt{Execute\_Model}} followed by token processing \textbf{\texttt{Sample\_Tokens}}. Accordingly, each inference iteration follows the execution structure:
 \[
 \text{Scheduler}
 \rightarrow
@@ -36,16 +36,13 @@ Different generation mechanisms follow different execution paths within each inf
 
     % SD
     \item \textbf{SD Execution Path}.
-    \texttt{Execute\_Model} verifies multiple draft tokens in parallel using a \textbf{prefill-style execution pattern} for multi-token queries.
+    \texttt{Execute\_Model} verifies {\em multiple} draft tokens in parallel using a \textbf{prefill-style execution pattern} for multi-token queries.
     \texttt{Sample\_Tokens} then aggregates the verification results from the LLM outputs and invokes the drafter to generate the draft tokens for subsequent verification.
 \end{itemize}
 % 说明将二者强行统一成一条路径的问题
 % Consequently, non-SD and SD differ in both execution flow and kernel usage. Unifying them into a single execution path would require extra alignment or force one path to use a suboptimal kernel, introducing unnecessary overhead. \xiaoxi{Add one sentence to confirm existing vllm/sglang dynamic SD indeed incur such ``extra alignment'' overhead and cite Figure~\ref{fig:nonsd_overhead}.}
-Consequently, non-SD and SD differ in both execution path. Existing adaptive SD approaches such as vLLM's Dynamic SD and SGLang's Adaptive SD unify these two paths to support runtime adaptation. However, such unification requires additional alignment between the two execution modes or forces one mode to operate with a suboptimal computation kernel, thereby introducing unnecessary overhead (\autoref{dynamic-sd-comparison}).
-
-\xiaoxirev{
-Throughout this paper, we use {\em (execution) mode} to denote the scheduler-visible runtime state indicating whether SD is enabled, and {\em path} to denote the corresponding worker-side implementation branch used to realize that mode. Each mode maps to a separate native execution path with its own execution flow and CUDA Graph, so switching modes in \sysname also switches the underlying execution path.
-}
+Consequently, non-SD and SD follow different execution paths within each inference iteration. Existing adaptive SD approaches such as vLLM's Dynamic SD and SGLang's Adaptive SD unify these two paths to support runtime adaptation. However, such unification requires additional alignment between the two execution modes or forces one mode to operate with a suboptimal computation kernel, thereby introducing unnecessary overhead (\autoref{dynamic-sd-comparison}).
+Throughout this paper, we use {\em (execution) mode} to denote the scheduler-visible runtime state indicating whether SD is enabled, and {\em (execution) path} to denote the corresponding worker-side implementation branch used to realize that mode. Each mode maps to a separate native execution path with its own execution flow and CUDA Graph, so switching modes in \sysname also switches the underlying execution path.
 
 % Agent 任务的调度优化问题定义
 \subsection{Scheduling Objective for Agent Tasks}
@@ -94,7 +91,7 @@ $\mathcal{R}$, our scheduling objective is to find a feasible scheduling policy 
 \begin{equation}
 \pi^{*} = \arg\min_{\pi \in \Pi} \frac{1}{|\mathcal{R}|} \sum_{R_i \in \mathcal{R}} \mathrm{JCT}_{\pi}(R_i),
 \end{equation}
-where $\pi$ denotes the set of feasible scheduling policies that respect the dependency between agent steps and the serving capacity of the inference system.
+where $\Pi$ denotes the set of feasible scheduling policies that respect the dependency between agent steps and the serving capacity of the inference system.
 
 % 引用论文说明这个优化问题是 NP-Hard
 This global scheduling problem is computationally challenging due to dependencies among agent steps and contention among concurrent requests. 
