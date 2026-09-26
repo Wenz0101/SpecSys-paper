@@ -107,7 +107,7 @@ addresses these issues by decoupling mode selection logic from engine execution 
 % \sysname extends the inference engine with a lightweight control interface to receive SD switching requests and forward them to the scheduler to update the desired execution mode.
 % This design decouples the external scheduling policy from the internal execution logic of the inference engine. \xiaoxi{still need to highlight the fundamental benefit, e.g., improved deployment flexibility or extendibility}
 \sysname exposes a lightweight control interface that receives SD switching requests and forwards them to the scheduler to update the desired execution mode.
-This design decouples the switching policy from internal execution logic, allowing customized policies to be changed or replaced without modifying the underline inference engine.
+This design decouples the switching policy from internal execution logic, allowing customized policies to be changed or replaced without modifying the underlying inference engine.
 %As a result, \sysname can be flexibly integrated with different deployment environments and external scheduling strategies.
 
 % scheduler
@@ -183,7 +183,7 @@ The profiling cost is negligible, as \sysname only maintains lightweight statist
 \textbf{Remaining-Step Estimation.}
 % todo: 解释一下为什么要用这样的方法
 %\sysname adopts different estimation strategies based on the characteristics of each workflow type as described in~\autoref{type-describe}.
-For each workflow type, \sysname estimates the remaining steps using workflow-specific signals. Let $\hat{R}_x$ denote the estimate for Type $x$. Type A leverages the explicit plan, Type B uses the most frequent historical completion step to capture recurring termination patterns, Type C further incorporates state transitions and uses the median for more robust estimation.
+For each workflow type, \sysname estimates the remaining steps using workflow-specific signals. Let $\hat{R}_x$ denote the estimate for Type $x$. Type A leverages the explicit plan; Type B uses the most frequent historical completion step to capture recurring termination patterns; Type C further incorporates state transitions and uses the median for more robust estimation.
 
 % Type A，解析 plan 直接得到 P ，然后 P-k 得到剩余 step
 For \textbf{Type A}, let $P$ denote the planned step count extracted from the prompt. 

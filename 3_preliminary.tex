@@ -48,7 +48,7 @@ Throughout this paper, we use {\em (execution) mode} to denote the scheduler-vis
 \subsection{Scheduling Objective for Agent Tasks}
 
 % 简要介绍 agent task 的特点
-Unlike LLM tasks, agent tasks are typically executed as multi-step workflows consisting of multiple dependent steps. The end-to-end performance of an agent task depends on the execution of the entire workflow rather than the latency of any individual LLM calls. 
+Unlike LLM tasks, agent tasks are typically executed as multi-step workflows consisting of multiple dependent steps. The end-to-end performance of an agent task depends on the execution of the entire workflow rather than the latency of any individual LLM call. 
 For all serial agent workflows considered in this work, we abstract their execution as a ReAct-style pattern for ease of presentation, where LLM inference and tool execution alternate throughout the workflow~\citep{ReAct}. 
 %As a result, the end-to-end performance of an agent task depends on the execution of the entire workflow rather than the latency of any individual LLM request.
 

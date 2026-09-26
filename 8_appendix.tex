@@ -72,20 +72,20 @@ Specifically, the break-even batch sizes are 36 for 4090-14B-TP2 and 28 for 4090
 These results show that the serving load at which SD ceases to provide a performance benefit varies considerably across deployment configurations, highlighting the need to determine when SD should be enabled based on the specific serving environment.
 
 We further observe that the speedup decreases more rapidly on RTX 4090 GPUs than on A100 GPUs.
-In particular, A100 GPUs maintain positive SD speedup at larger batch sizes, resulting in a higher break-even batch size between SD and Non-SD execution.
+In particular, A100 GPUs maintain positive SD speedup at larger batch sizes, resulting in a higher break-even batch size between SD and non-SD execution.
 This observation suggests that the effective operating range of SD depends on the underlying hardware capability: more powerful GPUs can sustain the benefit of SD under higher serving loads, whereas less powerful GPUs enter the negative-speedup regime earlier.
-Consequently, adaptive SD selection has greater optimization opportunities on resource-constrained GPUs, where choosing between SD and Non-SD execution is more critical as the serving load changes.
+Consequently, adaptive SD selection has greater optimization opportunities on resource-constrained GPUs, where choosing between SD and non-SD execution is more critical as the serving load changes.
 
 Different draft lengths exhibit the same overall trend.
 At low batch sizes, more aggressive configurations with longer draft lengths can achieve higher speedup, while increasing the batch size favors more conservative configurations with shorter draft lengths.
 This load-dependent behavior motivates existing adaptive SD approaches to adjust the draft length according to the current serving load.
 However, draft-length adaptation alone is insufficient at high loads: once the batch size becomes sufficiently large, even the most conservative configuration with a draft length of 1 can incur negative speedup.
-Therefore, an effective adaptive SD mechanism should not only adapt the draft length, but also be able to completely disable SD and switch to the native Non-SD execution path when speculative decoding is no longer beneficial.
+Therefore, an effective adaptive SD mechanism should not only adapt the draft length, but also be able to completely disable SD and switch to the native non-SD execution path when speculative decoding is no longer beneficial.
 
 \clearpage
 
 % 对比不同动态 SD 方法
-\section{Comparison of Adaptive SD Approaches.}
+\section{Comparison of Adaptive SD Approaches}
 \label{dynamic-sd-comparison}
 
 \begin{table}[H]
@@ -100,15 +100,15 @@ Therefore, an effective adaptive SD mechanism should not only adapt the draft le
 
         \multirow{4}{*}{vLLM}
         & Dynamic SD ($\text{draft\_len}=0$)
-        & NonSD
+        & non-SD
         & $\times$ \\
 
         & Dynamic SD ($\text{draft\_len}=0$)
         & SD
         & $\checkmark$ \\
 
-        & \sysname-NonSD Mode
-        & NonSD
+        & \sysname non-SD Mode
+        & non-SD
         & $\checkmark$ \\
 
         & \sysname-SD Mode
@@ -119,15 +119,15 @@ Therefore, an effective adaptive SD mechanism should not only adapt the draft le
 
         \multirow{4}{*}{SGLang}
         & Adaptive SD ($\text{draft\_len}=0$)
-        & NonSD
+        & non-SD
         & $\times$ \\
 
         & Adaptive SD ($\text{draft\_len}=0$)
         & SD
         & $\checkmark$ \\
 
-        & \sysname-NonSD Mode
-        & NonSD
+        & \sysname non-SD Mode
+        & non-SD
         & $\checkmark$ \\
 
         & \sysname-SD Mode
@@ -139,27 +139,27 @@ Therefore, an effective adaptive SD mechanism should not only adapt the draft le
 \end{table}
 
 \textbf{Token Consistency across Adaptive SD Approaches.}
-Online inference engines typically employ different execution paths for SD and Non-SD generation to improve efficiency, with different kernels used for key computations such as attention.
-As a result, even under deterministic decoding settings (i.e., temperature $=0$ and top-$k=1$), SD and Non-SD execution may generate slightly different token sequences for the same prompt due to differences in their underlying computation paths, although the generated contents are usually semantically similar.
+Online inference engines typically employ different execution paths for SD and non-SD generation to improve efficiency, with different kernels used for key computations such as attention.
+As a result, even under deterministic decoding settings (i.e., temperature $=0$ and top-$k=1$), SD and non-SD execution may generate slightly different token sequences for the same prompt due to differences in their underlying computation paths, although the generated contents are usually semantically similar.
 Therefore, token-level consistency provides a practical indicator of whether two execution modes follow the same underlying inference path.
 We evaluate this behavior for two adaptive SD approaches, vLLM Dynamic SD and SGLang Adaptive SD, as shown in~\autoref{tab:token_consistency}.
-For both vLLM Dynamic SD and SGLang Adaptive SD, when SD is disabled by setting $\text{draft\_len}=0$, the generated tokens are inconsistent with those of the native Non-SD engine but remain consistent with those produced by the native SD engine.
-This indicates that setting $\text{draft\_len}=0$ does not fully switch execution back to the native Non-SD path; instead, the engine continues to follow the SD execution path with SD disabled.
-In contrast, \sysname's Non-SD mode produces tokens consistent with the native Non-SD engine, while its SD mode remains consistent with the native SD engine.
-These results demonstrate that \sysname performs a more complete runtime switch between the native SD and Non-SD execution paths.
+For both vLLM Dynamic SD and SGLang Adaptive SD, when SD is disabled by setting $\text{draft\_len}=0$, the generated tokens are inconsistent with those of the native non-SD engine but remain consistent with those produced by the native SD engine.
+This indicates that setting $\text{draft\_len}=0$ does not fully switch execution back to the native non-SD path; instead, the engine continues to follow the SD execution path with SD disabled.
+In contrast, \sysname's non-SD mode produces tokens consistent with the native non-SD engine, while its SD mode remains consistent with the native SD engine.
+These results demonstrate that \sysname performs a more complete runtime switch between the native SD and non-SD execution paths.
 
-\textbf{Non-SD Overhead across Adaptive SD Approaches.}
-Since vLLM Dynamic SD and SGLang Adaptive SD continue to execute along the SD path when $\text{draft\_len}=0$, this path is suboptimal for autoregressive Non-SD generation and introduces additional performance overhead.
-We therefore measure the Non-SD execution overhead of these two Adaptive SD approaches and \sysname relative to the native Non-SD engine, as shown in~\autoref{fig:nonsd_overhead}.
+\textbf{non-SD Overhead across Adaptive SD Approaches.}
+Since vLLM Dynamic SD and SGLang Adaptive SD continue to execute along the SD path when $\text{draft\_len}=0$, this path is suboptimal for autoregressive non-SD generation and introduces additional performance overhead.
+We therefore measure the non-SD execution overhead of these two Adaptive SD approaches and \sysname relative to the native non-SD engine, as shown in~\autoref{fig:nonsd_overhead}.
 However, \sysname consistently incurs substantially lower overhead than vLLM Dynamic SD and SGLang Adaptive SD across all batch sizes.
-These results further demonstrate the benefit of \sysname's more complete runtime switching between the native SD and Non-SD execution paths.
+These results further demonstrate the benefit of \sysname's more complete runtime switching between the native SD and non-SD execution paths.
 
 \begin{figure}[!b]
     \begin{center}
     \includegraphics[width=1.0\linewidth]{figures/6-nonsd-overhead.pdf}
     \end{center}
     \caption{
-        Non-SD execution overhead across different adaptive SD approaches and batch sizes.
+        non-SD execution overhead across different adaptive SD approaches and batch sizes.
     }
     \label{fig:nonsd_overhead}
 \end{figure}
@@ -177,11 +177,11 @@ These results further demonstrate the benefit of \sysname's more complete runtim
     \label{fig:step_distributions_combine}
 \end{figure}
 
-To investigate how agent step distributions relate to workloads and workflows, we evaluate six workload--workflow combinations, as shown in~\ref{fig:step_distributions_combine}.
+To investigate how agent step distributions relate to workloads and workflows, we evaluate six workload--workflow combinations, as shown in~\autoref{fig:step_distributions_combine}.
 For the same workload, different workflows exhibit substantially different step distributions; similarly, under the same workflow, changing the workload also leads to noticeable distribution shifts.
 These observations suggest that agent step distributions are closely associated with the workload--workflow combination.
 
-To further validate this relationship, we compare step distributions across different datasets while keeping both the workload and workflow fixed, as shown in~\ref{fig:step_distributions_subset}.
+To further validate this relationship, we compare step distributions across different datasets while keeping both the workload and workflow fixed, as shown in~\autoref{fig:step_distributions_subset}.
 Despite using different datasets, the resulting step distributions remain broadly similar, further supporting our observation that the workload--workflow combination is a primary factor shaping the step distribution.
 
 Moreover, we observe a distinctive multimodal pattern for AgentFlow, a multi-step iterative workflow, where agent tasks tend to terminate at only a few specific step counts.
@@ -192,7 +192,7 @@ This observation provides an opportunity to predict the remaining steps of an ag
     \begin{center}
     \includegraphics[width=1.0\linewidth]{figures/step_distributions_subset.pdf}
     \end{center}
-    \caption{Distribution of Agent execution steps across datasets under the same workflow and task.}
+    \caption{Distribution of agent execution steps across datasets under the same workflow and task.}
     \label{fig:step_distributions_subset}
 \end{figure}
 
@@ -636,7 +636,7 @@ median endpoint is used as the estimated total number of steps, from which the c
     \includegraphics[width=1.0\linewidth]{figures/online-request-trace.pdf}
     \end{center}
     \caption{
-        Request arrival patterns of the Azure and Qwen Bailian traces, measured as the number of requests per minute over time.
+        Request arrival patterns of the Azure and Qwen-Bailian traces, measured as the number of requests per minute over time.
     }
     \label{fig:online_request_trace}
 \end{figure}
@@ -649,15 +649,15 @@ Its average arrival rate is 152.05 requests/min, while the peak reaches 632 requ
 Such rapid load fluctuations make SD beneficial during low-load periods, but may cause performance degradation when sudden bursts push the serving system into a high-load regime.
 Therefore, this trace is well suited for evaluating whether adaptive SD methods can effectively adapt their SD decisions to rapidly changing serving loads.
 
-\textbf{Qwen Bailian Trace.}
-In contrast, the Qwen Bailian trace is considerably smoother and remains under sustained high load for most of its duration.
+\textbf{Qwen-Bailian Trace.}
+In contrast, the Qwen-Bailian trace is considerably smoother and remains under sustained high load for most of its duration.
 Its average arrival rate reaches 358.82 requests/min, more than twice the 152.05 requests/min observed in the Azure trace, while its peak is 488 requests/min.
 Under such consistently high load, the benefit of SD is limited and can even cause performance degradation, while a large number of requests may accumulate in the waiting queue.
-This trace is therefore well suited for evaluating both the Non-SD overhead introduced by adaptive SD mechanisms under high load and the effectiveness of task scheduling strategies in reducing queueing delay.
+This trace is therefore well suited for evaluating both the non-SD overhead introduced by adaptive SD mechanisms under high load and the effectiveness of task scheduling strategies in reducing queueing delay.
 
 \begin{table}[H]
     \centering
-    \caption{Statistics of the Azure and Qwen Bailian traces.}
+    \caption{Statistics of the Azure and Qwen-Bailian traces.}
     \label{tab:trace_statistics}
     \begin{tabular}{lrrrrr}
         \toprule
@@ -669,7 +669,7 @@ This trace is therefore well suited for evaluating both the Non-SD overhead intr
         \textbf{Peak Req.} \\
         \midrule
         Azure         & 8,819  & 57.27  & 152.05 & 14  & 632 \\
-        Qwen Bailian  & 43,058 & 119.99 & 358.82 & 113 & 488 \\
+        Qwen-Bailian  & 43,058 & 119.99 & 358.82 & 113 & 488 \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -692,8 +692,8 @@ This trace is therefore well suited for evaluating both the Non-SD overhead intr
         \midrule
         AgentFlow  & Web Search   & 100   & 1,502 & 12.84 \\
         AgentFlow  & Coding    & 100   & 2,133 & 10.21 \\
-        Plan-Solve & Bash & 200   & 786   & 6.63 \\
-        Plan-Solve & SQL  & 200   & 627   & 6.21 \\
+        Plan-and-Solve & Bash & 200   & 786   & 6.63 \\
+        Plan-and-Solve & SQL  & 200   & 627   & 6.21 \\
         ReAct      & Bash & 200   & 2,293 & 3.32 \\
         ReAct      & SQL  & 200   & 2,422 & 4.79 \\
         \midrule
@@ -808,6 +808,19 @@ Since ThunderAgent performs periodic scheduling at a configurable interval, this
 
 \clearpage
 
+\section{Discussion of vLLM and SGLang}
+\label{appendix:vllm-sglang}
+
+In our experiments (\autoref{fig:end2end_jct},~\autoref{fig:nonsd_overhead} and~\autoref{fig:p90_p95_throughput}), SGLang achieves lower inference latency than vLLM in most evaluated configurations, consistent with its aggressive runtime optimizations for high-performance LLM serving. Nevertheless, \sysname is also implemented on top of vLLM, and our evaluation retains vLLM-based baselines, because vLLM provides more consistent support across heterogeneous model and SD configurations, making it necessary for evaluating configurations that cannot be directly deployed on SGLang.
+
+A recent empirical study of LLM serving frameworks~\citep{LLM_Serving_in_the_Wild} shows that vLLM is the most popular and widely adopted serving framework among the studied systems, with substantially more open-source repositories adopting it than SGLang and other alternatives. The study also finds that vLLM is used across a broader range of model families, suggesting broader compatibility across heterogeneous LLMs. These observations are consistent with our deployment experience, where vLLM provides more consistent out-of-the-box support across different models and SD configurations.
+
+In our practical deployments, using Qwen3-32B and Llama-3.3-70B-Instruct with SGLang encountered several model- and backend-specific issues that required additional debugging and configuration adjustments before successful deployment. 
+In contrast, the same models could be directly deployed with vLLM without additional model-specific modifications or special setup.
+
+Therefore, although SGLang delivers better performance in most of our evaluated configurations, this does not imply that it is universally preferable to vLLM. vLLM's wider adoption, broader model coverage, and more consistent out-of-the-box compatibility remain important practical advantages, which is why \sysname continues to support and build upon vLLM.
+
+\clearpage
 
 \section{Experimental Hyperparameters}
 \label{app:hyperparameters}

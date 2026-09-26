@@ -7,7 +7,7 @@
 \textbf{Hardware.}
 % \sysname is evaluated on two servers \xiaoxirev{representing a resource-constrained environment and a relatively-abundant resource environment}: \textbf{4$\times$ NVIDIA RTX 4090-24GB} GPUs connected via PCIe 4.0 with an Intel Xeon Gold 6338N CPU (128 cores),
 % and \textbf{4$\times$ NVIDIA A100-SXM4-80GB} GPUs connected via NVLink 3.0 with an Intel Xeon Platinum 8369B CPU (128 cores).
-\sysname is evaluated on two servers representing a resource-constrained environment and a relatively-abundant resource environment: \textbf{4$\times$ NVIDIA RTX 4090-24GB} GPUs connected via PCIe 4.0 with an Intel Xeon Gold 6338N CPU (128 cores),
+\sysname is evaluated on two servers representing a resource-constrained environment and a relatively resource-abundant environment: \textbf{4$\times$ NVIDIA RTX 4090-24GB} GPUs connected via PCIe 4.0 with an Intel Xeon Gold 6338N CPU (128 cores),
 and \textbf{4$\times$ NVIDIA A100-SXM4-80GB} GPUs connected via NVLink 3.0 with an Intel Xeon Platinum 8369B CPU (128 cores).
 
 \textbf{Models.}
@@ -64,12 +64,12 @@ We extend two state-of-the-art LLM inference engines, vLLM and SGLang, with a ru
 The Azure and Qwen-Bailian traces %exhibit different load patterns (\autoref{Traces}), 
 stress different aspects of \sysname.
 % Azure 轨迹的负载波动较大，其主要考验的是 \sysname 根据不同负载能力选择性使用 SD 加速的策略。
-Under Azure's frequent load fluctuations, \sysname selectively enables SD at favorable loads while avoiding its high load, achieving \textbf{1.18--1.64$\times$} speedup over the {\bf best} baseline across different models and hardware configurations. %, demonstrating the benefit of adapting SD usage to changing loads.
+Under Azure's frequent load fluctuations, \sysname selectively enables SD at favorable loads while disabling SD under high load, achieving \textbf{1.18--1.64$\times$} speedup over the {\bf best} baseline across different models and hardware configurations. %, demonstrating the benefit of adapting SD usage to changing loads.
 %The Azure trace shows large and frequent load fluctuations, providing opportunities for \sysname to selectively enable SD under favorable loads while avoiding its overhead under high load.
 % 而 QwenBailian 轨迹的负载波动较小，长期处于高负载，主要考验的是 \sysname 的任务调度策略。
-Under Qwen-Bailian trace's sustained high load, SD provides fewer acceleration opportunities and can even increase JCT, making completion-aware scheduling more important;
+Under the sustained high load of the Qwen-Bailian trace, SD provides fewer acceleration opportunities and can even increase JCT, making completion-aware scheduling more important;
 %Under this sustained high-load setting, directly enabling SD or existing dynamic SD schemes can even increase JCT, whereas 
-\sysname achieves \textbf{1.88$\times$} and \textbf{2.10$\times$} speedups on Qwen3-14B and Qwen3-32B, respectively. By completing short-remaining jobs earlier, scheduling also reduces system load and creates opportunities for subsequent SD acceleration.
+\sysname achieves \textbf{1.88$\times$} and \textbf{2.10$\times$} speedups on Qwen3-14B and Qwen3-32B, respectively. By completing the short-remaining tasks earlier, scheduling also reduces system load and creates opportunities for subsequent SD acceleration.
 %These results show that \sysname benefits from selective SD switching under fluctuating loads, while its scheduling mechanism becomes particularly important under sustained high loads by completing short-remaining jobs earlier, reducing system load, and creating more favorable conditions for subsequent SD acceleration.
 
 % 不同的模型
@@ -92,8 +92,8 @@ Under Qwen-Bailian trace's sustained high load, SD provides fewer acceleration o
 %         \begin{itemize}[leftmargin=10pt]
 %             \item 
 %                 The system becomes compute-bound at relatively small running batch sizes, resulting in a low crossover point beyond which SD no longer provides acceleration.
-%                 Consequently, Non-SD is preferred for a large fraction of execution.
-%                 Existing dynamic SD baselines still retain additional SD-related overhead in this regime and can even perform worse than pure Non-SD.In contrast, \sysname performs a more complete runtime switch and incurs lower overhead in Non-SD mode, leading to faster inference and lower average JCT.
+%                 Consequently, non-SD is preferred for a large fraction of execution.
+%                 Existing dynamic SD baselines still retain additional SD-related overhead in this regime and can even perform worse than pure non-SD.In contrast, \sysname performs a more complete runtime switch and incurs lower overhead in non-SD mode, leading to faster inference and lower average JCT.
 %             \item 
 %                 Limited KV-cache capacity constrains the runnable batch size and causes more requests to remain queued.
 %                 ThunderAgent primarily optimizes spatial utilization by admitting as many requests as possible within the available memory to maximize throughput, whereas \sysname additionally considers the temporal dimension by prioritizing jobs with shorter predicted remaining execution time.
@@ -112,13 +112,13 @@ In contrast, on the A100 platform, we deploy Qwen3-14B, Qwen3-32B, and Llama-3.3
 
 \begin{itemize}[leftmargin=10pt]
     \item 
-        Under the resource-constrained setting, limited compute capability and memory resources introduce two challenges that \sysname addresses through its SD switching and scheduling mechanisms, respectively.
+        Under the resource-constrained setting, limited compute capability and memory resources introduce two challenges that \sysname addresses through its SD switching and completion-ware scheduling, respectively.
         Overall, \sysname achieves \textbf{1.31--2.10$\times$} speedup under this setting.
         \begin{itemize}[leftmargin=10pt]
             \item 
-                The system becomes compute-bound at relatively small running batch sizes, resulting in a low crossover point beyond which SD no longer provides acceleration.
-                Consequently, Non-SD is preferred for a large fraction of execution.
-                Existing dynamic SD baselines still retain additional SD-related overhead in this regime and can even perform worse than pure Non-SD. In contrast, \sysname performs a more complete runtime switch and incurs lower overhead in Non-SD mode, leading to faster inference and lower average JCT.
+                The system becomes compute-bound at relatively small running batch sizes, resulting in a low \xiaoxirev{break-even} point \xiaoxirev{$B^{*}$} beyond which SD no longer provides acceleration.
+                Consequently, non-SD \xiaoxirev{(see ThunderAgent in~\autoref{fig:end2end_jct})} is preferred for a large fraction of execution.
+                Existing dynamic SD baselines retain additional SD-related overhead in this regime and can even perform worse than pure non-SD. In contrast, \sysname performs a more complete runtime switch and incurs lower overhead in non-SD mode, leading to faster inference and lower average JCT.
             \item 
                 Limited KV-cache capacity constrains the runnable batch size and causes more requests to remain queued.
                 ThunderAgent primarily optimizes spatial utilization by admitting as many requests as possible within the memory to maximize throughput, whereas \sysname additionally considers the temporal dimension by prioritizing jobs with shorter predicted remaining steps.
@@ -203,8 +203,7 @@ Beyond average JCT, we further report P90/P95 JCT and system throughput in~\auto
 
 % 介绍剩余 Step 预测策略的准确率
 \textbf{Remaining-Step Prediction Accuracy.}
-We evaluate the predictor in~\autoref{sec:4.2} using Pair Accuracy, and Top-10\% Recall, which measure pairwise ordering accuracy, and recall of the true shortest 10\% jobs, respectively.
-Since our scheduler mainly relies on queue ranking, the latter two metrics are more relevant.
+Since our scheduler relies on queue ranking, we evaluate the predictor in~\autoref{sec:4.2} using Pair Accuracy and Top-10\% Recall, which measure pairwise ordering accuracy and recall of the true shortest 10\% jobs, respectively.
 As shown in~\autoref{tab:prediction_performance}, Type-A achieves 100\% accuracy since its remaining steps are explicitly available from the planning prompt, while Type-B benefits from its multimodal step distribution.
 Although Type-C is more difficult to predict, state information still provides useful estimates.
 Overall, \sysname achieves \textbf{84.1\% Pair Accuracy} and \textbf{82.2\% Top-10\% Recall}, providing reliable signals for scheduling.
@@ -223,7 +222,7 @@ These results show that prioritizing jobs with shorter predicted remaining steps
 We next compare different implementations of dynamic SD.
 Replacing vLLM DSD with \sysname's runtime SD switching reduces average JCT from 72.0\,s to 64.6\,s under the ThunderAgent scheduler (\autoref{fig:ablation}, 2 vs 3). 
 When combined with the \sysname scheduler, the average JCT further decreases from 48.2\,s with vLLM DSD to 44.5\,s with \sysname (\autoref{fig:ablation}, 5 vs 6).
-This improvement mainly comes from \sysname's lower overhead in Non-SD mode (see~\autoref{dynamic-sd-comparison}), while preserving comparable performance to the baseline in SD mode.
+This improvement mainly comes from \sysname's lower overhead in non-SD mode (see~\autoref{dynamic-sd-comparison}), while preserving comparable performance to the baseline in SD mode.
 
 % 与理想情况的差距
 \textbf{Gap to Oracle.}

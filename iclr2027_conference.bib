@@ -511,14 +511,22 @@ month = jul
 
 % confirmed: SIGMOD2026
 @article{Helium,
-  title={Efficient LLM serving for agentic workflows: A data systems perspective},
-  author={Wadlom, Noppanat and Shen, Junyi and Lu, Yao},
-  journal={Proceedings of the ACM on Management of Data},
-  volume={4},
-  number={3 (SIGMOD},
-  pages={1--29},
-  year={2026},
-  publisher={ACM New York, NY, USA}
+author = {Wadlom, Noppanat and Shen, Junyi and Lu, Yao},
+title = {Efficient LLM Serving for Agentic Workflows: A Data Systems Perspective},
+year = {2026},
+issue_date = {June 2026},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {4},
+number = {3},
+url = {https://doi.org/10.1145/3802046},
+doi = {10.1145/3802046},
+abstract = {Agentic workflows are composed of sequences of interdependent Large Language Model (LLM) calls, and they have become a dominant workload in modern AI systems. These workflows exhibit extensive redundancy from overlapping prompts and intermediate results due to speculative and parallel exploration. Existing LLM serving systems, such as vLLM, focus on optimizing individual inference calls and overlook cross-call dependencies, leading to significant inefficiencies. This paper rethinks LLM and agent serving from a data systems perspective and introduces Helium, a workflow-aware serving framework that models agentic workloads as query plans and treats LLM invocations as first-class operators. Helium integrates proactive caching and cache-aware scheduling to maximize reuse across prompts, KV states, and workflows. Through these techniques, Helium bridges classic query optimization principles with LLM serving, achieving up to 1.56{\texttimes} speedup over state-of-the-art agent serving systems on various workloads. Our results demonstrate that end-to-end optimization across workflows is essential for scalable and efficient LLM-based agents.},
+journal = {Proc. ACM Manag. Data},
+month = may,
+articleno = {169},
+numpages = {29},
+keywords = {large language models, agentic workflows, query optimization}
 }
 
 % confirmed: NIPS2025
@@ -533,4 +541,12 @@ month = jul
  url = {https://proceedings.neurips.cc/paper_files/paper/2025/file/c7b5a35ea98b62512a869c19ea7b03cb-Paper-Conference.pdf},
  volume = {38, Main Conference},
  year = {2025}
+}
+
+% confirmed: arxiv
+@article{LLM_Serving_in_the_Wild,
+  title={LLM Serving in the Wild: An Empirical Study of Frameworks, Methods, and System Designs},
+  author={Majidi, Forough and Morovati, Mohammad Mehdi and Khomh, Foutse and Li, Heng},
+  journal={arXiv preprint arXiv:2608.03036},
+  year={2026}
 }
