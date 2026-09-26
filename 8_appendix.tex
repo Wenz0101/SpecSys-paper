@@ -5,7 +5,7 @@
 \label{llm-time-ratio}
 
 \begin{table}[H]
-    \vspace{-10pt}
+    \vspace{-15pt}
     \centering
     \caption{LLM inference time breakdown across agent tasks.}
     \label{tab:llm_time_breakdown}
@@ -14,12 +14,13 @@
         \textbf{Task} & \textbf{Dataset} & \textbf{Avg. JCT (s)} & \textbf{Avg. LLM Time (s)} & \textbf{LLM Time Ratio} \\
         \midrule
         Web Search & 2WikiMultihopQA & 60.36 & 36.49 & 60.46\% \\
-        Web Search & Bamboogle       & 49.15 & 32.91 & 66.95\% \\
-        Web Search & HotpotQA        & 40.72 & 29.14 & 71.56\% \\
-        Coding     & MBPP            & 30.10 & 30.06 & 99.87\% \\
+        Web Search & \makecell[l]{Bamboogle\\[-2pt]\citep{bamboogle}} & 49.15 & 32.91 & 66.95\% \\
+        Web Search & \makecell[l]{HotpotQA\\[-2pt]\citep{hotpotqa}} & 40.72 & 29.14 & 71.56\% \\
+        Coding     & MBPP & 30.10 & 30.06 & 99.87\% \\
         \bottomrule
     \end{tabular}
 \end{table}
+\vspace{-10pt}
 
 \begin{figure}[!b]
     \begin{center}
@@ -256,7 +257,7 @@ contained in each prompt.
 
 % 初始状态
 \paragraph{Example 1: Initial State.}
-The following examples are taken from AgentFlow execution trajectories on the Web Searching tasks.
+The following example is taken from AgentFlow execution trajectories on the Web Searching tasks.
 The first request contains the original query but no previously
 executed action or observation:
 
@@ -281,7 +282,7 @@ state \texttt{start} to this request.
 
 % 问题状态/消极状态
 \paragraph{Example 2: Problem State.}
-The following examples are taken from AgentFlow execution trajectories on the Web Searching tasks.
+The following example is taken from AgentFlow execution trajectories on the Web Searching tasks.
 The next prompt contains the result of an unsuccessful search:
 \begin{lstlisting}[
 basicstyle=\ttfamily\small,
@@ -316,7 +317,7 @@ The phrase \texttt{No results found} matches the problem-related keyword \texttt
 
 % 积极状态
 \paragraph{Example 3: Positive State.}
-The following examples are taken from AgentFlow execution trajectories on the Coding tasks. 
+The following example is taken from AgentFlow execution trajectories on the Coding tasks. 
 The latest tool execution indicates that the
 generated implementation passes all provided tests:
 
@@ -352,7 +353,7 @@ The result contains both \texttt{passed} and \texttt{successfully}, which match 
 
 % 中性状态
 \paragraph{Example 4: Neutral State.}
-The following examples are taken from AgentFlow execution trajectories on the Web Searching tasks.
+The following example is taken from AgentFlow execution trajectories on the Web Searching tasks.
 In the following prompt, the latest search action does not contain any predefined problem-related or positive-completion keywords:
 
 \begin{lstlisting}[
@@ -422,7 +423,7 @@ task termination, producing five task-independent states:
 
 % 初始状态
 \paragraph{Example 1: Initial State.}
-The following examples are taken from ReAct on SQL Task.
+The following example is taken from ReAct on SQL Task.
 The first request contains the original question but no completed
 action or observation:
 
@@ -446,7 +447,7 @@ Since no action has been completed, the proxy assigns the state
 
 % 普通状态
 \paragraph{Example 2: Normal State.}
-The following examples are taken from ReAct on SQL Task.
+The following example is taken from ReAct on SQL Task.
 In the following prompt, the latest action executes successfully and
 returns a valid observation:
 
@@ -478,7 +479,7 @@ repeat the preceding action, the state is classified as
 
 % 问题状态
 \paragraph{Example 3: Error State.}
-The following examples are taken from ReAct on SQL Task.
+The following example is taken from ReAct on SQL Task.
 In the next prompt, the agent attempts to access a nonexistent table:
 
 \begin{lstlisting}[
@@ -518,7 +519,7 @@ to be mapped to the same task-independent state.
 
 % 重复状态
 \paragraph{Example 4: Repeated-Action State.}
-The following examples are taken from ReAct on SQL Task.
+The following example is taken from ReAct on SQL Task.
 In the following example, the same action is executed in two consecutive steps:
 
 \begin{lstlisting}[
@@ -552,7 +553,7 @@ After normalization, \texttt{Action 7} is identical to
 
 % 最终状态/提交状态
 \paragraph{Example 5: Final-or-Submit State.}
-The following examples are taken from ReAct on SQL Task.
+The following example is taken from ReAct on SQL Task.
 Once the agent determines that the task has been completed, it submits
 the result:
 
@@ -702,7 +703,7 @@ This trace is therefore well suited for evaluating both the non-SD overhead intr
     \end{tabular}
 \end{table}
 
-\textbf{Agent Request Analysis.} We summarize the characteristics of the agent execution traces used in our experiments in~\autoref{tab:agent-workload-statistics}. In total, the traces contain 1,000 execution traces across six workload--workflow combinations, with an average of 1,504 prompt tokens per request and 6.492 execution steps per task. The request characteristics vary substantially across different combinations. AgentFlow exhibits the largest average number of execution steps, reaching 12.84 steps on Web Search and 10.21 steps on Coding. In contrast, ReAct requires only 3.315 and 4.785 steps on Bash and SQL respectively, while having relatively long prompts of more than 2,000 tokens per request. Plan-Solve lies between these two workflows in terms of execution steps, while producing the shortest prompts among the evaluated combinations. These statistics demonstrate the diversity of request lengths and execution patterns covered by our experimental workloads.
+\textbf{Agent Request Analysis.} We summarize the characteristics of the agent execution traces used in our experiments in~\autoref{tab:agent-workload-statistics}. In total, the traces contain 1,000 execution traces across six workload--workflow combinations, with an average of 1,504 prompt tokens per request and 6.492 execution steps per task. The request characteristics vary substantially across different combinations. AgentFlow exhibits the largest average number of execution steps, reaching 12.84 steps on Web Search and 10.21 steps on Coding. In contrast, ReAct requires only 3.315 and 4.785 steps on Bash and SQL respectively, while having relatively long prompts of more than 2,000 tokens per request. Plan-and-Solve lies between these two workflows in terms of execution steps, while producing the shortest prompts among the evaluated combinations. These statistics demonstrate the diversity of request lengths and execution patterns covered by our experimental workloads.
 
 \begin{table}[H]
     \centering

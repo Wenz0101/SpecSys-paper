@@ -222,7 +222,7 @@ When the fine-grained statistics are insufficient, \sysname progressively falls 
 % 离线 profile 出不同配置下的 SD加速比与推理负载的关系，得到一个平衡点。
 \textbf{Offline SD Speedup Profiling.}
 \label{sec:4.3.1}
-For each model and hardware configuration, \sysname profiles SD speedup across different batch sizes before engine startup and identifies the data-independent, hardware-dependent break-even load $B^{*}$, defined as the largest batch size at which SD achieves a speedup greater than or equal to 1.
+For each model and hardware configuration, \sysname profiles SD speedup across different batch sizes before engine startup and identifies the break-even load $B^{*}$, defined as the largest batch size at which SD achieves a speedup greater than or equal to 1. 
 SD is beneficial below $B^{*}$, while its overhead can cause performance degradation above this point. Detailed profiling results are provided in~\autoref{sd-speedup}.
 
 % 负载估计

@@ -1,5 +1,5 @@
 % 总结
 \section{conclusion}
-In this work, we present SpecSys, an efficient inference system that jointly optimizes speculative decoding and task scheduling for LLM-powered agents under dynamic serving loads.
-By exposing a low-overhead runtime interface that enables complete iteration-level switching between native SD and Non-SD execution, selectively enabling SD under low serving loads, and prioritizing tasks with fewer predicted remaining steps under high serving loads, SpecSys adapts to the changing performance bottlenecks of online agent serving to minimize average job completion time (JCT).
-Extensive evaluations across three LLMs, two hardware platforms, four agent workloads, three agent workflows, and two real-world online serving traces show that SpecSys consistently improves end-to-end performance, achieving 1.18$\times$--2.10$\times$ speedups over the best baselines.
+In this work, we present \sysname, an efficient inference system that jointly optimizes speculative decoding and task scheduling for LLM-powered agents under dynamic serving loads.
+By exposing a low-overhead runtime interface that enables complete iteration-level switching between native SD and non-SD execution, selectively enabling SD under low serving loads, and prioritizing tasks with fewer predicted remaining steps under high serving loads, \sysname adapts to the changing performance bottlenecks of online agent serving to minimize average job completion time (JCT).
+Extensive evaluations across three LLMs, two hardware platforms, four agent workloads, three agent workflows, and two real-world online serving traces show that \sysname consistently improves end-to-end performance, achieving 1.18$\times$--2.10$\times$ speedups over the best baselines.

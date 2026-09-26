@@ -49,12 +49,11 @@ Detailed request characteristics and hardware configurations are provided in~\au
 \end{figure}
 
 % 说明我们具体是怎么实现 \sysname 的
-We extend two state-of-the-art LLM inference engines, vLLM and SGLang, with a runtime SD switching interface, as described in~\autoref{sec:4.1}, and implement \sysname's scheduling mechanism, as described in~\autoref{sec:4.3}, by modifying the scheduler of ThunderAgent, a state-of-the-art agent-oriented task scheduling system.
-
+We extend vLLM and SGLang with the runtime SD-switching interface (\autoref{sec:4.1}) and implement \sysname’s completion-aware scheduling by extending ThunderAgent’s scheduler (\autoref{sec:4.3}). \autoref{fig:end2end_jct} compares the average JCT of \sysname and four baselines across seven configurations. For each configuration, the \sysname bar reports the lower measured average JCT of \sysname-vLLM and \sysname-SGLang.
+%
 % 总体介绍实验
 % We evaluate \sysname under seven configurations covering different models, hardware platforms, and online serving traces, and compare it against four baseline configurations.
-% \autoref{fig:end2end_jct} shows the average JCT of all methods, which serves as our primary metric for end-to-end performance.
-\autoref{fig:end2end_jct} compares the average JCT of \sysname and four baselines across seven configurations.
+% \autoref{fig:end2end_jct} shows the average JCT of all methods, which serves as our primary metric for end-to-end performance. 
 
 % 分点介绍实验结果
 
@@ -112,12 +111,12 @@ In contrast, on the A100 platform, we deploy Qwen3-14B, Qwen3-32B, and Llama-3.3
 
 \begin{itemize}[leftmargin=10pt]
     \item 
-        Under the resource-constrained setting, limited compute capability and memory resources introduce two challenges that \sysname addresses through its SD switching and completion-ware scheduling, respectively.
+        Under the resource-constrained setting, limited compute capability and memory resources introduce two challenges that \sysname addresses through its SD switching and completion-aware scheduling, respectively.
         Overall, \sysname achieves \textbf{1.31--2.10$\times$} speedup under this setting.
         \begin{itemize}[leftmargin=10pt]
             \item 
-                The system becomes compute-bound at relatively small running batch sizes, resulting in a low \xiaoxirev{break-even} point \xiaoxirev{$B^{*}$} beyond which SD no longer provides acceleration.
-                Consequently, non-SD \xiaoxirev{(see ThunderAgent in~\autoref{fig:end2end_jct})} is preferred for a large fraction of execution.
+                The system becomes compute-bound at relatively small running batch sizes, resulting in a low break-even point $B^{*}$ beyond which SD no longer provides acceleration.
+                Consequently, non-SD (see ThunderAgent in~\autoref{fig:end2end_jct}) is preferred for a large fraction of execution.
                 Existing dynamic SD baselines retain additional SD-related overhead in this regime and can even perform worse than pure non-SD. In contrast, \sysname performs a more complete runtime switch and incurs lower overhead in non-SD mode, leading to faster inference and lower average JCT.
             \item 
                 Limited KV-cache capacity constrains the runnable batch size and causes more requests to remain queued.
@@ -136,6 +135,7 @@ Beyond average JCT, we further report P90/P95 JCT and system throughput in~\auto
 
 % 消融实验
 \subsection{Ablation Study}
+We conduct an ablation study on the A100 platform using Qwen3-14B with TP=1 to evaluate the effectiveness of each component in \sysname, following the setup of~\autoref{fig:end2end_jct}(e).
 
 % 消融实验结果图
 
@@ -204,28 +204,27 @@ Beyond average JCT, we further report P90/P95 JCT and system throughput in~\auto
 % 介绍剩余 Step 预测策略的准确率
 \textbf{Remaining-Step Prediction Accuracy.}
 Since our scheduler relies on queue ranking, we evaluate the predictor in~\autoref{sec:4.2} using Pair Accuracy and Top-10\% Recall, which measure pairwise ordering accuracy and recall of the true shortest 10\% jobs, respectively.
-As shown in~\autoref{tab:prediction_performance}, Type-A achieves 100\% accuracy since its remaining steps are explicitly available from the planning prompt, while Type-B benefits from its multimodal step distribution.
+As shown in~\autoref{tab:prediction_performance}, Type-A achieves 100\% accuracy and recall since its remaining steps are explicitly available from the planning prompt, while Type-B benefits from its multimodal step distribution.
 Although Type-C is more difficult to predict, state information still provides useful estimates.
 Overall, \sysname achieves \textbf{84.1\% Pair Accuracy} and \textbf{82.2\% Top-10\% Recall}, providing reliable signals for scheduling.
 
 % 介绍消融实验
 
+% 对比不同的动态 SD 实现方式
+\textbf{Impact of Adaptive SD Mechanisms.}
+We first compare different implementations of adaptive SD.
+Replacing Adaptive SD with \sysname's SD switching reduces average JCT from 72.0\,s to 64.6\,s  (\autoref{fig:ablation}, 2 vs 3). 
+This improvement mainly comes from \sysname's lower overhead in non-SD mode (see~\autoref{dynamic-sd-comparison}), while preserving comparable performance in SD mode.
+
 % 对比调度策略
 \textbf{Impact of Scheduling.}
-We first evaluate the impact of \sysname's remaining-step-aware scheduling.
-Compared with ThunderAgent (\autoref{fig:ablation}, 1), adding the \sysname scheduler (\autoref{fig:ablation}, 4) reduces average JCT from 82.5\,s to 55.1\,s, corresponding to a \textbf{1.50$\times$} speedup.
-A similar improvement is observed when combined with vLLM DSD (\autoref{fig:ablation}, 2 vs 5), where average JCT decreases from 72.0\,s to 48.2\,s.
-These results show that prioritizing jobs with shorter predicted remaining steps is more effective for reducing average JCT than throughput-oriented scheduling alone.
-
-% 对比不同的动态 SD 实现方式
-\textbf{Impact of Dynamic SD Mechanisms.}
-We next compare different implementations of dynamic SD.
-Replacing vLLM DSD with \sysname's runtime SD switching reduces average JCT from 72.0\,s to 64.6\,s under the ThunderAgent scheduler (\autoref{fig:ablation}, 2 vs 3). 
-When combined with the \sysname scheduler, the average JCT further decreases from 48.2\,s with vLLM DSD to 44.5\,s with \sysname (\autoref{fig:ablation}, 5 vs 6).
-This improvement mainly comes from \sysname's lower overhead in non-SD mode (see~\autoref{dynamic-sd-comparison}), while preserving comparable performance to the baseline in SD mode.
+We next evaluate the impact of \sysname's completion-aware scheduling.
+Compared with ThunderAgent (\autoref{fig:ablation}, 1), adding the \sysname scheduler (Figure 5, 4) reduces average JCT from 82.5\,s to 55.1\,s, corresponding to a \textbf{1.50$\times$} speedup.
+Compared with using only \sysname's SD switching mechanism (\autoref{fig:ablation}, 3), further incorporating \sysname's scheduler (\autoref{fig:ablation}, 5) reduces average JCT from 64.6\,s to 44.5\,s, corresponding to a \textbf{1.45$\times$} speedup.
+This improvement demonstrates that remaining-step-aware scheduling provides complementary benefits, especially under high serving load where queueing becomes a major bottleneck, by prioritizing jobs with shorter predicted remaining steps to complete them earlier and reduce queueing delay.
 
 % 与理想情况的差距
 \textbf{Gap to Oracle.}
 Finally, we compare \sysname with an oracle configuration that uses oracle remaining-step information for scheduling.
-The oracle configuration achieves an average JCT of 43.0\,s, compared with 44.5\,s for \sysname, leaving only a \textbf{3.5\%} gap (\autoref{fig:ablation}, 6 vs 7).
+The oracle configuration achieves an average JCT of 43.0\,s, compared with 44.5\,s for \sysname, leaving only a \textbf{3.5\%} gap (\autoref{fig:ablation}, 5 vs 6).
 This small gap indicates that the predicted remaining steps are sufficient to achieve performance close to scheduling with ground-truth remaining steps.
